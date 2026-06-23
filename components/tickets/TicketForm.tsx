@@ -1,0 +1,321 @@
+"use client";
+
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { SeveritySelector } from "./SeveritySelector";
+
+type IssueTypeKey = "BUG" | "CALL_FAILURE" | "CUSTOMER_ISSUE" | "INTEGRATION" | "OPS_REQUEST";
+type SeverityKey = "P1" | "P2" | "P3" | "P4";
+
+interface FormState {
+  submitterName: string;
+  submitterEmail: string;
+  title: string;
+  description: string;
+  issueType: IssueTypeKey | "";
+  severity: SeverityKey | null;
+  customerName: string;
+  link: string;
+}
+
+interface FormErrors {
+  submitterName?: string;
+  submitterEmail?: string;
+  title?: string;
+  description?: string;
+  issueType?: string;
+  severity?: string;
+}
+
+interface SuccessInfo {
+  shortId: number;
+  email: string;
+}
+
+export function TicketForm() {
+  const [form, setForm] = useState<FormState>({
+    submitterName: "",
+    submitterEmail: "",
+    title: "",
+    description: "",
+    issueType: "",
+    severity: null,
+    customerName: "",
+    link: "",
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState<SuccessInfo | null>(null);
+
+  const set = (field: keyof FormState, value: string | null) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const validate = (): boolean => {
+    const errs: FormErrors = {};
+    if (!form.submitterName.trim()) errs.submitterName = "Name is required";
+    if (!form.submitterEmail.trim()) errs.submitterEmail = "Email is required";
+    else if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.submitterEmail))
+      errs.submitterEmail = "Enter a valid email";
+    if (!form.title.trim()) errs.title = "Please summarize the issue";
+    else if (form.title.length < 3) errs.title = "Title too short";
+    if (!form.description.trim()) errs.description = "Please describe what happened";
+    else if (form.description.length < 10) errs.description = "Please provide more detail";
+    if (!form.issueType) errs.issueType = "Please select an issue type";
+    if (!form.severity) errs.severity = "Please select how urgent this is";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const body: Record<string, unknown> = {
+        submitterName: form.submitterName,
+        submitterEmail: form.submitterEmail,
+        title: form.title,
+        description: form.description,
+        issueType: form.issueType,
+        severity: form.severity,
+      };
+      if (form.customerName) body.customerName = form.customerName;
+      if (form.link) body.links = [form.link];
+
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setErrors({ description: data.error || "Something went wrong. Please try again." });
+        return;
+      }
+
+      const data = await res.json();
+      setSuccess({ shortId: data.shortId, email: form.submitterEmail });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReset = () => {
+    setForm({
+      submitterName: "",
+      submitterEmail: "",
+      title: "",
+      description: "",
+      issueType: "",
+      severity: null,
+      customerName: "",
+      link: "",
+    });
+    setErrors({});
+    setSuccess(null);
+  };
+
+  if (success) {
+    return (
+      <div className="text-center space-y-5 py-6">
+        <div className="text-5xl">✅</div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Issue submitted — Ticket #{String(success.shortId).padStart(3, "0")}
+          </h2>
+          <p className="text-gray-600 mt-2">
+            We received your report and will follow up at{" "}
+            <span className="font-medium">{success.email}</span>.
+          </p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 text-left space-y-2 border border-gray-200">
+          <p className="text-sm font-medium text-gray-700">Expected response times:</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>🔴</span> Critical issues: within 4 hours
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>🟠</span> High issues: within 8 hours
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>🟡</span> Medium issues: within 24 hours
+            </div>
+          </div>
+        </div>
+        <Button onClick={handleReset} className="w-full" variant="outline">
+          Submit another issue
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      <div>
+        <Label htmlFor="submitterName">Your name *</Label>
+        <Input
+          id="submitterName"
+          value={form.submitterName}
+          onChange={(e) => set("submitterName", e.target.value)}
+          onBlur={() => {
+            if (!form.submitterName.trim())
+              setErrors((e) => ({ ...e, submitterName: "Name is required" }));
+            else setErrors((e) => ({ ...e, submitterName: undefined }));
+          }}
+          placeholder="Jane Smith"
+          className={`mt-1 ${errors.submitterName ? "border-red-400" : ""}`}
+        />
+        {errors.submitterName && (
+          <p className="mt-1 text-sm text-red-600">{errors.submitterName}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="submitterEmail">Your email *</Label>
+        <Input
+          id="submitterEmail"
+          type="email"
+          value={form.submitterEmail}
+          onChange={(e) => set("submitterEmail", e.target.value)}
+          onBlur={() => {
+            if (!form.submitterEmail.trim())
+              setErrors((e) => ({ ...e, submitterEmail: "Email is required" }));
+            else if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.submitterEmail))
+              setErrors((e) => ({ ...e, submitterEmail: "Enter a valid email" }));
+            else setErrors((e) => ({ ...e, submitterEmail: undefined }));
+          }}
+          placeholder="jane@example.com"
+          className={`mt-1 ${errors.submitterEmail ? "border-red-400" : ""}`}
+        />
+        <p className="mt-1 text-xs text-gray-500">We&apos;ll send updates here</p>
+        {errors.submitterEmail && (
+          <p className="mt-1 text-sm text-red-600">{errors.submitterEmail}</p>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="title">What&apos;s the issue? *</Label>
+          <span className="text-xs text-gray-400">{form.title.length}/120</span>
+        </div>
+        <Input
+          id="title"
+          value={form.title}
+          onChange={(e) => set("title", e.target.value.slice(0, 120))}
+          onBlur={() => {
+            if (!form.title.trim())
+              setErrors((e) => ({ ...e, title: "Please summarize the issue" }));
+            else setErrors((e) => ({ ...e, title: undefined }));
+          }}
+          placeholder="Short summary — e.g. 'AI call dropped before scheduling'"
+          className={`mt-1 ${errors.title ? "border-red-400" : ""}`}
+          maxLength={120}
+        />
+        {errors.title && (
+          <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="description">Tell us what happened *</Label>
+        <Textarea
+          id="description"
+          value={form.description}
+          onChange={(e) => set("description", e.target.value)}
+          onBlur={() => {
+            if (!form.description.trim())
+              setErrors((e) => ({ ...e, description: "Please describe what happened" }));
+            else setErrors((e) => ({ ...e, description: undefined }));
+          }}
+          rows={5}
+          placeholder="Describe what went wrong, when it happened, and who was affected. The more detail, the faster we can help."
+          className={`mt-1 ${errors.description ? "border-red-400" : ""}`}
+        />
+        {errors.description && (
+          <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="issueType">What type of issue is this? *</Label>
+        <select
+          id="issueType"
+          value={form.issueType}
+          onChange={(e) => {
+            set("issueType", e.target.value);
+            setErrors((errs) => ({ ...errs, issueType: undefined }));
+          }}
+          className={`mt-1 w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900 ${
+            errors.issueType ? "border-red-400" : "border-gray-300"
+          }`}
+        >
+          <option value="">Select...</option>
+          <option value="CALL_FAILURE">AI call problem</option>
+          <option value="BUG">Something is broken (bug)</option>
+          <option value="CUSTOMER_ISSUE">Customer complaint</option>
+          <option value="INTEGRATION">System connection issue</option>
+          <option value="OPS_REQUEST">Operational / process issue</option>
+        </select>
+        {errors.issueType && (
+          <p className="mt-1 text-sm text-red-600">{errors.issueType}</p>
+        )}
+      </div>
+
+      <div>
+        <Label className="mb-2 block">How urgent is this? *</Label>
+        <SeveritySelector
+          value={form.severity}
+          onChange={(v) => {
+            set("severity", v);
+            setErrors((e) => ({ ...e, severity: undefined }));
+          }}
+          error={errors.severity}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="customerName">Customer or dealership name</Label>
+        <Input
+          id="customerName"
+          value={form.customerName}
+          onChange={(e) => set("customerName", e.target.value)}
+          placeholder="e.g. Sunset Toyota"
+          className="mt-1"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Fill in if this is about a specific account
+        </p>
+      </div>
+
+      <div>
+        <Label htmlFor="link">Relevant link</Label>
+        <Input
+          id="link"
+          type="url"
+          value={form.link}
+          onChange={(e) => set("link", e.target.value)}
+          placeholder="Call recording URL, screenshot, or related link"
+          className="mt-1"
+        />
+      </div>
+
+      <Button type="submit" className="w-full" disabled={submitting}>
+        {submitting ? (
+          <span className="flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Submitting...
+          </span>
+        ) : (
+          "Submit Issue →"
+        )}
+      </Button>
+    </form>
+  );
+}

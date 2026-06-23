@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUBMITTER
+  OPERATOR
+  ENGINEER
+  ADMIN
+}
+
+enum IssueType {
+  BUG
+  CALL_FAILURE
+  CUSTOMER_ISSUE
+  INTEGRATION
+  OPS_REQUEST
+}
+
+enum Severity {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Status {
+  NEW
+  TRIAGED
+  IN_PROGRESS
+  BLOCKED
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id               String         @id @default(cuid())
+  supabaseId       String?        @unique
+  name             String
+  email            String         @unique
+  role             Role           @default(SUBMITTER)
+  createdAt        DateTime       @default(now())
+  submittedTickets Ticket[]       @relation("SubmittedBy")
+  assignedTickets  Ticket[]       @relation("AssignedTo")
+  comments         Comment[]
+  statusChanges    StatusHistory[]
+}
+
+model Ticket {
+  id             String          @id @default(cuid())
+  shortId        Int             @default(autoincrement())
+  title          String
+  description    String
+  issueType      IssueType
+  severity       Severity
+  priority       Priority        @default(MEDIUM)
+  status         Status          @default(NEW)
+  customerName   String?
+  dealershipName String?
+  links          String[]
+  attachmentUrls String[]
+  submitterId    String?
+  submitter      User?           @relation("SubmittedBy", fields: [submitterId], references: [id])
+  submitterName  String
+  submitterEmail String
+  assigneeId     String?
+  assignee       User?           @relation("AssignedTo", fields: [assigneeId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  firstResponseAt DateTime?
+  triagedAt       DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  reopenedAt      DateTime?
+  comments        Comment[]
+  history         StatusHistory[]
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?    @relation(fields: [authorId], references: [id])
+  authorName String
+  body       String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model StatusHistory {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromStatus  Status?
+  toStatus    Status
+  changedById String?
+  changedBy   User?    @relation(fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
+  note        String?
+}
