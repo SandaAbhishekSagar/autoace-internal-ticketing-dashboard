@@ -21,19 +21,24 @@ export function AppShell({ children, userName, userEmail, role }: AppShellProps)
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — always visible on md+ */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-30 lg:relative lg:flex lg:flex-shrink-0 transition-transform duration-200",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "fixed inset-y-0 left-0 z-30 md:relative md:flex md:flex-shrink-0 transition-transform duration-200",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <Sidebar role={role} userName={userName} />
+        <Sidebar
+          role={role}
+          userName={userName}
+          userEmail={userEmail}
+          onClose={() => setSidebarOpen(false)}
+        />
       </div>
 
       {/* Main content */}
@@ -44,7 +49,7 @@ export function AppShell({ children, userName, userEmail, role }: AppShellProps)
           role={role}
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
