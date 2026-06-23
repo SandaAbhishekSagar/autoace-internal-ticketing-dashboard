@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Role } from "@prisma/client";
 import {
-  LayoutDashboard,
   Ticket,
   BarChart3,
   Users,
@@ -21,8 +20,8 @@ interface SidebarProps {
 const navItems = [
   {
     href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
+    label: "All Tickets",
+    icon: Ticket,
     roles: ["ENGINEER", "ADMIN"] as Role[],
   },
   {
@@ -30,12 +29,6 @@ const navItems = [
     label: "My Issues",
     icon: ListChecks,
     roles: ["SUBMITTER", "OPERATOR"] as Role[],
-  },
-  {
-    href: "/tickets",
-    label: "All Tickets",
-    icon: Ticket,
-    roles: ["ENGINEER", "ADMIN"] as Role[],
   },
   {
     href: "/kpi",

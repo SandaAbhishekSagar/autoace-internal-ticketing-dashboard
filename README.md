@@ -23,8 +23,8 @@
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API |
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API |
-   | `DATABASE_URL` | Supabase → Settings → Database → Transaction pooler string |
-   | `DIRECT_URL` | Supabase → Settings → Database → Session pooler string |
+   | `DATABASE_URL` | Supabase → **Connect** → **ORMs** → Prisma → **Transaction pooler** (port **6543**) |
+   | `DIRECT_URL` | Supabase → **Connect** → **ORMs** → Prisma → **Session pooler** (port **5432**) — **not** the `db.xxx.supabase.co` direct host |
    | `NEXTAUTH_SECRET` | Run `openssl rand -base64 32` locally |
 
 4. **Railway auto-deploys.** The build runs `prisma generate && next build`, then `prisma migrate deploy && next start`.
@@ -46,6 +46,28 @@
    ```
 
 > **Note:** Railway automatically sets `PORT` and `RAILWAY_PUBLIC_DOMAIN`. The app reads these from `next.config.mjs`.
+
+### Railway troubleshooting: `P1001 Can't reach database server`
+
+If deploy logs show Prisma connecting to `db.<ref>.supabase.co:5432` and failing with **P1001**, your `DIRECT_URL` is wrong for Railway.
+
+**Do not use** the Supabase "Direct connection" host (`db.xxx.supabase.co`) — it is often IPv6-only and unreachable from Railway.
+
+**Use the Session pooler instead** (same place you copied `DATABASE_URL`, but pick **Session** mode, port **5432**):
+
+| Variable | Host | Port | Username format |
+|----------|------|------|-----------------|
+| `DATABASE_URL` | `aws-1-us-west-2.pooler.supabase.com` | 6543 | `postgres.<project-ref>` |
+| `DIRECT_URL` | `aws-1-us-west-2.pooler.supabase.com` | 5432 | `postgres.<project-ref>` |
+
+Example for project `cmakemhozygakhomxmrb`:
+
+```
+DATABASE_URL=postgresql://postgres.cmakemhozygakhomxmrb:YOUR_PASSWORD@aws-1-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.cmakemhozygakhomxmrb:YOUR_PASSWORD@aws-1-us-west-2.pooler.supabase.com:5432/postgres
+```
+
+In Supabase dashboard: **Connect** → **ORMs** → **Prisma** — copy both strings from there. Update both vars in Railway → **Variables**, then redeploy.
 
 ---
 
@@ -100,9 +122,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # From Supabase Dashboard → Settings → Database → Connection string
-# Use the "Transaction" pooler string for DATABASE_URL
+# Use the "Transaction" pooler string for DATABASE_URL (port 6543)
 DATABASE_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true
-# Use the "Session" or direct connection string for DIRECT_URL
+# Use the "Session" pooler string for DIRECT_URL (port 5432) — NOT db.xxxx.supabase.co
 DIRECT_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.com:5432/postgres
 
 # Random 32-character string (openssl rand -base64 32)
