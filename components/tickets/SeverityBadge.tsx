@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import type { Severity } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
@@ -7,18 +6,49 @@ interface SeverityBadgeProps {
   className?: string;
 }
 
-const severityConfig: Record<Severity, { label: string; className: string }> = {
-  P1: { label: "P1 Critical", className: "bg-red-600 text-white border-red-600" },
-  P2: { label: "P2 High", className: "bg-orange-500 text-white border-orange-500" },
-  P3: { label: "P3 Medium", className: "bg-yellow-500 text-white border-yellow-500" },
-  P4: { label: "P4 Low", className: "bg-gray-400 text-white border-gray-400" },
+const severityConfig: Record<
+  Severity,
+  { label: string; bg: string; text: string; border: string }
+> = {
+  P1: {
+    label: "P1 · Critical",
+    bg: "bg-red-600",
+    text: "text-white",
+    border: "border-red-700",
+  },
+  P2: {
+    label: "P2 · High",
+    bg: "bg-orange-500",
+    text: "text-white",
+    border: "border-orange-600",
+  },
+  P3: {
+    label: "P3 · Medium",
+    bg: "bg-amber-400",
+    text: "text-amber-900",
+    border: "border-amber-500",
+  },
+  P4: {
+    label: "P4 · Low",
+    bg: "bg-gray-100",
+    text: "text-gray-600",
+    border: "border-gray-200",
+  },
 };
 
 export function SeverityBadge({ severity, className }: SeverityBadgeProps) {
-  const config = severityConfig[severity];
+  const c = severityConfig[severity];
   return (
-    <Badge className={cn(config.className, className)}>
-      {config.label}
-    </Badge>
+    <span
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border",
+        c.bg,
+        c.text,
+        c.border,
+        className
+      )}
+    >
+      {c.label}
+    </span>
   );
 }
