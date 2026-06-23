@@ -31,11 +31,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ["/submit", "/login", "/api/tickets"];
+  const publicPaths = ["/submit", "/login", "/api/tickets", "/api/health"];
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/tickets") ||
+    pathname === "/api/health" ||
     pathname === "/";
 
   if (!user && !isPublicPath) {
