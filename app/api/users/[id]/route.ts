@@ -27,6 +27,18 @@ export async function PATCH(
     if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
     if (parsed.data.isOnCall !== undefined) updateData.isOnCall = parsed.data.isOnCall;
 
+    // Exclusive on-call: only one engineer/admin can be on-call at a time
+    if (parsed.data.isOnCall === true) {
+      await prisma.user.updateMany({
+        where: {
+          isOnCall: true,
+          id: { not: params.id },
+          role: { in: ["ENGINEER", "ADMIN"] },
+        },
+        data: { isOnCall: false },
+      });
+    }
+
     const updated = await prisma.user.update({
       where: { id: params.id },
       data: updateData,

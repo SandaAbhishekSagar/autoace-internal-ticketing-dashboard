@@ -29,6 +29,7 @@ interface TicketRowProps {
   onStatusChange: (id: string, status: Status) => void;
   currentUserId?: string;
   onAssignToMe: (id: string) => void;
+  readOnly?: boolean;
 }
 
 const statusOptions: { value: Status; label: string }[] = [
@@ -47,6 +48,7 @@ export function TicketRow({
   onClick,
   onStatusChange,
   onAssignToMe,
+  readOnly = false,
 }: TicketRowProps) {
   const rowClass = ticket.isSLABreached
     ? "bg-red-50 hover:bg-red-100"
@@ -64,12 +66,14 @@ export function TicketRow({
 
   return (
     <tr className={cn("border-b transition-colors", rowClass)}>
-      <td className="pl-4 pr-2 py-3 w-10">
-        <Checkbox
-          checked={selected}
-          onCheckedChange={(c) => onSelect(ticket.id, !!c)}
-        />
-      </td>
+      {!readOnly && (
+        <td className="pl-4 pr-2 py-3 w-10">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={(c) => onSelect(ticket.id, !!c)}
+          />
+        </td>
+      )}
       <td className="px-3 py-3 text-sm text-gray-400 font-mono w-16">
         #{String(ticket.shortId).padStart(3, "0")}
       </td>
@@ -127,38 +131,49 @@ export function TicketRow({
         {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
       </td>
       <td className="px-3 py-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="sm" className="h-7 w-7 p-0" />}
+        {readOnly ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-gray-500"
+            onClick={() => onClick(ticket.id)}
           >
-            <MoreHorizontal className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onAssignToMe(ticket.id)}>
-              Assign to me
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Change status</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {statusOptions.map((s) => (
-                  <DropdownMenuItem
-                    key={s.value}
-                    onClick={() => onStatusChange(ticket.id, s.value)}
-                    className={ticket.status === s.value ? "font-semibold" : ""}
-                  >
-                    {s.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuItem onClick={() => onClick(ticket.id)}>
-              View detail
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={copyLink}>
-              Copy ticket link
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            View
+          </Button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="sm" className="h-7 w-7 p-0" />}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAssignToMe(ticket.id)}>
+                Assign to me
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Change status</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {statusOptions.map((s) => (
+                    <DropdownMenuItem
+                      key={s.value}
+                      onClick={() => onStatusChange(ticket.id, s.value)}
+                      className={ticket.status === s.value ? "font-semibold" : ""}
+                    >
+                      {s.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuItem onClick={() => onClick(ticket.id)}>
+                View detail
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={copyLink}>
+                Copy ticket link
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </td>
     </tr>
   );

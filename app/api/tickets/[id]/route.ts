@@ -3,12 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateTicketSchema } from "@/lib/validations";
 import { getSLAStatus } from "@/lib/sla";
-import { sendStatusUpdateEmail } from "@/lib/email";
-import { notifyStatusChange } from "@/lib/slack";
+import { sendStatusUpdateEmail, sendAssignmentEmail } from "@/lib/email";
+import { notifyStatusChange, notifyAssignment } from "@/lib/slack";
+import { createLinearIssue } from "@/lib/linear";
+import { canViewTicket, canManageTickets } from "@/lib/ticket-access";
 import type { Status } from "@prisma/client";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -19,7 +21,7 @@ export async function GET(
     const dbUser = await prisma.user.findUnique({ where: { supabaseId: user.id } });
     if (!dbUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const isEngineerOrAdmin = ["ENGINEER", "ADMIN"].includes(dbUser.role);
+    const canSeeInternal = canManageTickets(dbUser.role);
 
     const ticket = await prisma.ticket.findUnique({
       where: { id: params.id },
@@ -27,7 +29,7 @@ export async function GET(
         assignee: { select: { id: true, name: true } },
         submitter: { select: { id: true, name: true, email: true } },
         comments: {
-          where: isEngineerOrAdmin ? {} : { isInternal: false },
+          where: canSeeInternal ? {} : { isInternal: false },
           orderBy: { createdAt: "asc" },
           include: {
             author: { select: { role: true } },
@@ -43,6 +45,10 @@ export async function GET(
     });
 
     if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (!canViewTicket(dbUser, ticket)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const slaStatus = getSLAStatus(ticket.severity, ticket.createdAt, ticket.firstResponseAt);
 
@@ -67,7 +73,7 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const dbUser = await prisma.user.findUnique({ where: { supabaseId: user.id } });
-    if (!dbUser || !["ENGINEER", "ADMIN"].includes(dbUser.role)) {
+    if (!dbUser || !canManageTickets(dbUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -89,7 +95,6 @@ export async function PATCH(
       const prev = existing.status;
       const next = data.status as Status;
 
-      // Auto-set timestamps based on status transition
       if (next === "TRIAGED" && !existing.triagedAt) updateData.triagedAt = now;
       if (["TRIAGED", "IN_PROGRESS", "BLOCKED"].includes(next) && !existing.firstResponseAt)
         updateData.firstResponseAt = now;
@@ -106,9 +111,9 @@ export async function PATCH(
       const updated = await tx.ticket.update({
         where: { id: params.id },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: updateData as any,
+        data: updateData as any,
         include: {
-          assignee: { select: { id: true, name: true } },
+          assignee: { select: { id: true, name: true, email: true } },
         },
       });
 
@@ -126,7 +131,10 @@ export async function PATCH(
       return updated;
     });
 
-    // Fire-and-forget notifications when status changes
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const ticketUrl = `${appUrl}/tickets/${params.id}`;
+
+    // Status change notifications
     if (data.status && data.status !== existing.status) {
       sendStatusUpdateEmail({
         to: existing.submitterEmail,
@@ -135,15 +143,63 @@ export async function PATCH(
         title: existing.title,
         newStatus: data.status,
       });
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
       notifyStatusChange({
         shortId: existing.shortId,
         title: existing.title,
         severity: existing.severity,
         newStatus: data.status,
         changedByName: dbUser.name,
-        ticketUrl: `${appUrl}/tickets/${params.id}`,
+        ticketUrl,
       });
+    }
+
+    // Assignment notifications
+    const assigneeChanged =
+      data.assigneeId !== undefined && data.assigneeId !== existing.assigneeId;
+    if (assigneeChanged && ticket.assignee) {
+      notifyAssignment({
+        shortId: existing.shortId,
+        title: existing.title,
+        severity: existing.severity,
+        assigneeName: ticket.assignee.name,
+        ticketUrl,
+      });
+      sendAssignmentEmail({
+        to: ticket.assignee.email,
+        assigneeName: ticket.assignee.name,
+        shortId: existing.shortId,
+        title: existing.title,
+        severity: existing.severity,
+        ticketUrl,
+      });
+    }
+
+    // Linear sync on triage
+    const triagedNow =
+      data.status === "TRIAGED" &&
+      existing.status !== "TRIAGED" &&
+      !existing.linearIssueId;
+
+    if (triagedNow) {
+      const linearIssue = await createLinearIssue({
+        title: existing.title,
+        description: existing.description,
+        ticketUrl,
+        shortId: existing.shortId,
+        severity: existing.severity,
+      });
+      if (linearIssue) {
+        await prisma.ticket.update({
+          where: { id: params.id },
+          data: {
+            linearIssueId: linearIssue.id,
+            linearIssueKey: linearIssue.identifier,
+            linearIssueUrl: linearIssue.url,
+          },
+        });
+        ticket.linearIssueId = linearIssue.id;
+        ticket.linearIssueKey = linearIssue.identifier;
+      }
     }
 
     return NextResponse.json(ticket);
@@ -154,7 +210,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

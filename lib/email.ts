@@ -30,16 +30,19 @@ export async function sendTicketConfirmation({
   shortId,
   title,
   severity,
+  trackingToken,
 }: {
   to: string;
   submitterName: string;
   shortId: number;
   title: string;
   severity: string;
+  trackingToken?: string | null;
 }) {
   if (!resend) return;
   const ticketNum = `#${String(shortId).padStart(3, "0")}`;
   const slaLabel = SLA_LABELS[severity] ?? "Response pending";
+  const trackUrl = trackingToken ? `${APP_URL}/track/${trackingToken}` : null;
 
   await resend.emails.send({
     from: FROM,
@@ -57,10 +60,53 @@ export async function sendTicketConfirmation({
   <p style="font-weight:600;margin:0 0 6px">${title}</p>
   <p style="color:#64748b;font-size:13px;margin:0">🎯 Priority: ${slaLabel}</p>
 </div>
+${trackUrl
+  ? `<p><a href="${trackUrl}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Track your ticket</a></p>
+<p style="color:#64748b;font-size:13px">Bookmark this link to check status anytime — no login required.</p>`
+  : ""
+}
 <p>We will follow up at <strong>${to}</strong> as soon as we have an update.</p>
 <p style="color:#64748b;font-size:13px">— AutoAce Engineering Support</p>
 </body></html>`.trim(),
   }).catch((err) => console.error("Email send failed:", err));
+}
+
+export async function sendAssignmentEmail({
+  to,
+  assigneeName,
+  shortId,
+  title,
+  severity,
+  ticketUrl,
+}: {
+  to: string;
+  assigneeName: string;
+  shortId: number;
+  title: string;
+  severity: string;
+  ticketUrl: string;
+}) {
+  if (!resend) return;
+  const ticketNum = `#${String(shortId).padStart(3, "0")}`;
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Assigned: Ticket ${ticketNum} — ${title}`,
+    html: `
+<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#111;max-width:560px;margin:0 auto;padding:24px">
+<div style="background:#1e40af;border-radius:12px;padding:24px 28px;margin-bottom:24px">
+  <h1 style="color:#fff;font-size:20px;margin:0">Ticket assigned to you</h1>
+</div>
+<p>Hi <strong>${assigneeName}</strong>,</p>
+<p>You have been assigned <strong>Ticket ${ticketNum}</strong> (${severity}).</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0">
+  <p style="font-weight:600;margin:0">${title}</p>
+</div>
+<p><a href="${ticketUrl}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Open ticket</a></p>
+<p style="color:#64748b;font-size:13px">— AutoAce Engineering</p>
+</body></html>`.trim(),
+  }).catch((err) => console.error("Assignment email failed:", err));
 }
 
 export async function sendStatusUpdateEmail({

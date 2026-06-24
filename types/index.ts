@@ -44,6 +44,8 @@ export interface TicketDetail extends TicketSummary {
   trackingToken: string | null;
   callRecordingUrl: string | null;
   callMonitorName: string | null;
+  linearIssueId: string | null;
+  linearIssueKey: string | null;
   comments: CommentItem[];
   history: StatusHistoryItem[];
 }
@@ -77,6 +79,8 @@ export interface KPIData {
   slaBreachCount: number;
   slaBreachRate: number;
   reopenRate: number;
+  escalationCount: number;
+  escalationRate: number;
   byType: { type: IssueType; count: number }[];
   byStatus: { status: Status; count: number }[];
   bySeverity: { severity: Severity; count: number }[];

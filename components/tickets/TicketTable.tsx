@@ -16,9 +16,10 @@ import { toast } from "sonner";
 interface TicketTableProps {
   role: Role;
   currentUserId: string;
+  readOnly?: boolean;
 }
 
-export function TicketTable({ role, currentUserId }: TicketTableProps) {
+export function TicketTable({ role, currentUserId, readOnly = false }: TicketTableProps) {
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -66,10 +67,11 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
   }, [fetchTickets]);
 
   useEffect(() => {
+    if (readOnly) return;
     fetch("/api/users?role=ENGINEER,ADMIN")
       .then((r) => r.json())
       .then((data) => setEngineers(data.users || []));
-  }, []);
+  }, [readOnly]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -167,12 +169,14 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="pl-4 pr-2 py-3 w-10">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleAll}
-                  />
-                </th>
+                {!readOnly && (
+                  <th className="pl-4 pr-2 py-3 w-10">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleAll}
+                    />
+                  </th>
+                )}
                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">
                   #
                 </th>
@@ -204,7 +208,7 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
               {loading &&
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b">
-                    <td colSpan={10} className="px-4 py-3">
+                    <td colSpan={readOnly ? 9 : 10} className="px-4 py-3">
                       <Skeleton className="h-4 w-full" />
                     </td>
                   </tr>
@@ -220,11 +224,12 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
                     onStatusChange={handleStatusChange}
                     currentUserId={currentUserId}
                     onAssignToMe={handleAssignToMe}
+                    readOnly={readOnly}
                   />
                 ))}
               {!loading && tickets.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center">
+                  <td colSpan={readOnly ? 9 : 10} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-gray-400">
                       <Inbox className="h-12 w-12" />
                       <p className="font-medium">No tickets match your filters</p>
@@ -281,13 +286,15 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
         )}
       </div>
 
-      <BulkActionBar
-        selectedCount={selectedIds.size}
-        engineers={engineers}
-        onAssign={handleBulkAssign}
-        onStatusChange={handleBulkStatus}
-        onClear={() => setSelectedIds(new Set())}
-      />
+      {!readOnly && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          engineers={engineers}
+          onAssign={handleBulkAssign}
+          onStatusChange={handleBulkStatus}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      )}
 
       <TicketDetailPanel
         ticketId={detailId}

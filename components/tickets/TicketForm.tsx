@@ -77,7 +77,7 @@ export function TicketForm() {
   const searchDuplicates = useCallback(async (title: string) => {
     if (title.length < 8) { setDuplicates([]); return; }
     try {
-      const res = await fetch(`/api/tickets?search=${encodeURIComponent(title)}&status=NEW,TRIAGED,IN_PROGRESS,BLOCKED&limit=3`);
+      const res = await fetch(`/api/tickets/duplicates?title=${encodeURIComponent(title)}`);
       if (res.ok) {
         const data = await res.json();
         setDuplicates(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createCommentSchema } from "@/lib/validations";
+import { canViewTicket, canManageTickets } from "@/lib/ticket-access";
 
 export async function POST(
   req: NextRequest,
@@ -23,14 +24,17 @@ export async function POST(
 
     const { body: commentBody, isInternal } = parsed.data;
 
-    // Only engineers/admins can post internal notes
-    const canPostInternal = ["ENGINEER", "ADMIN"].includes(dbUser.role);
+    const canPostInternal = canManageTickets(dbUser.role);
     if (isInternal && !canPostInternal) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const ticket = await prisma.ticket.findUnique({ where: { id: params.id } });
     if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+
+    if (!canViewTicket(dbUser, ticket)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const now = new Date();
     const updateData: Record<string, unknown> = {};

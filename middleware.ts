@@ -31,11 +31,13 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ["/submit", "/login", "/api/tickets", "/api/health", "/api/upload", "/api/track", "/track"];
+  const publicPaths = ["/submit", "/login", "/api/tickets", "/api/health", "/api/upload", "/api/track", "/track", "/api/cron", "/api/webhooks"];
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/tickets") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/webhooks") ||
     pathname === "/api/health" ||
     pathname === "/api/upload" ||
     pathname === "/";

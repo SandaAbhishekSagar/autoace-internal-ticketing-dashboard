@@ -25,7 +25,14 @@
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API |
    | `DATABASE_URL` | Supabase → **Connect** → **ORMs** → Prisma → **Transaction pooler** (port **6543**) |
    | `DIRECT_URL` | Supabase → **Connect** → **ORMs** → Prisma → **Session pooler** (port **5432**) — **not** the `db.xxx.supabase.co` direct host |
-   | `NEXTAUTH_SECRET` | Run `openssl rand -base64 32` locally |
+   | `NEXT_PUBLIC_APP_URL` | Your Railway public domain (e.g. `https://xxx.up.railway.app`) |
+   | `RESEND_API_KEY` | Optional — [resend.com](https://resend.com) for email notifications |
+   | `EMAIL_FROM` | Optional — sender address for Resend |
+   | `SLACK_WEBHOOK_URL` | Optional — Slack incoming webhook for P1/P2 alerts |
+   | `CRON_SECRET` | Optional — secures `/api/cron/sla-escalation` (Railway cron) |
+   | `LINEAR_API_KEY` | Optional — Linear personal API key for issue sync on triage |
+   | `LINEAR_TEAM_ID` | Optional — Linear team UUID |
+   | `LINEAR_WEBHOOK_SECRET` | Optional — verifies Linear webhook at `/api/webhooks/linear` |
 
 4. **Railway auto-deploys.** The build runs `prisma generate && next build`, then `prisma migrate deploy && next start`.
 
@@ -68,6 +75,23 @@ DIRECT_URL=postgresql://postgres.cmakemhozygakhomxmrb:YOUR_PASSWORD@aws-1-us-wes
 ```
 
 In Supabase dashboard: **Connect** → **ORMs** → **Prisma** — copy both strings from there. Update both vars in Railway → **Variables**, then redeploy.
+
+### SLA auto-escalation cron (optional)
+
+Add a Railway cron job to check for breached SLAs every 30 minutes:
+
+1. Set `CRON_SECRET` in Railway variables (`openssl rand -base64 32`)
+2. In Railway → your service → **Cron** → add schedule `*/30 * * * *`
+3. Command: `curl -s -H "Authorization: Bearer $CRON_SECRET" https://YOUR_APP_URL/api/cron/sla-escalation`
+
+Breached P1/P2/P3 tickets with no first response get a Slack alert and an internal system note (once per ticket).
+
+### Linear integration (optional)
+
+1. Set `LINEAR_API_KEY` and `LINEAR_TEAM_ID` in Railway variables
+2. When an engineer marks a ticket **Triaged**, a Linear issue is created automatically
+3. Create a Linear webhook pointing to `https://YOUR_APP_URL/api/webhooks/linear` with header `linear-signature: YOUR_LINEAR_WEBHOOK_SECRET`
+4. Status changes in Linear sync back to AutoAce tickets
 
 ---
 
@@ -127,8 +151,23 @@ DATABASE_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.co
 # Use the "Session" pooler string for DIRECT_URL (port 5432) — NOT db.xxxx.supabase.co
 DIRECT_URL=postgresql://postgres.xxxx:password@aws-0-region.pooler.supabase.com:5432/postgres
 
-# Random 32-character string (openssl rand -base64 32)
-NEXTAUTH_SECRET=your-32-character-random-secret-here
+# Random 32-character string for cron auth (openssl rand -base64 32)
+CRON_SECRET=your-cron-secret-here
+
+# App URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Email (optional)
+RESEND_API_KEY=
+EMAIL_FROM=AutoAce Support <tickets@autoace.com>
+
+# Slack (optional)
+SLACK_WEBHOOK_URL=
+
+# Linear (optional)
+LINEAR_API_KEY=
+LINEAR_TEAM_ID=
+LINEAR_WEBHOOK_SECRET=
 ```
 
 ---
@@ -178,7 +217,7 @@ The seed script creates database records. To also create Supabase Auth users pro
 |------|--------|-------------|
 | `/submit` | Public | Friendly form for non-technical users to report issues |
 | `/login` | Public | Email/password sign-in |
-| `/dashboard` | Engineer, Admin | Sortable/filterable ticket table with bulk actions |
+| `/dashboard` | Operator (read-only), Engineer, Admin | Sortable/filterable ticket table; operators can view all tickets but cannot triage |
 | `/tickets/[id]` | Authenticated | Full ticket detail with actions, timeline, comments |
 | `/my-tickets` | All roles | Card-based view of submitted issues (non-technical UX) |
 | `/kpi` | Engineer, Admin | Operations dashboard with charts and performance tables |
@@ -191,7 +230,7 @@ The seed script creates database records. To also create Supabase Auth users pro
 | Role | Can Submit | See All Tickets | Triage/Assign | Internal Notes | KPI Dashboard | User Management |
 |------|-----------|-----------------|---------------|----------------|---------------|-----------------|
 | SUBMITTER | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OPERATOR | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| OPERATOR | ✅ | ✅ (read-only) | ❌ | ❌ | ❌ | ❌ |
 | ENGINEER | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | ADMIN | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
@@ -232,26 +271,28 @@ Roles are stored in the `User` table and checked server-side on every API route 
 
 ## Assumptions
 
-- Attachment uploads use URL links in v1 (paste a link); Supabase Storage upgrade path is straightforward
-- Email notifications scoped out of v1; Supabase Edge Functions or Resend integration is the natural next step
-- SLA thresholds are hardcoded (P1=4h, P2=8h, P3=24h); should move to env vars or admin config in v2
-- No multi-tenancy in v1; all engineers see all tickets
+- File attachments use Supabase Storage (`ticket-attachments` bucket, public read)
+- Email (Resend) and Slack notifications are optional — enabled via env vars
+- SLA thresholds are hardcoded (P1=4h, P2=8h, P3=24h); configurable via env in a future version
+- Operators have read-only access to all tickets; engineers/admins can triage and assign
+- Linear sync is optional — creates a Linear issue when a ticket moves to TRIAGED
+- SLA auto-escalation runs via Railway cron hitting `/api/cron/sla-escalation` every 30 minutes
 
 ---
 
 ## What I Would Build Next
 
-### High priority (immediate value)
-1. **Slack notifications** — Supabase Edge Function triggered on ticket insert/update → Slack webhook for P1/P2 alerts and assignment pings
-2. **Linear sync** — Post-triage, auto-create Linear issue and store `linearIssueId` on ticket. Engineers stay in Linear; ticket stays as the non-technical user's view. Status syncs both ways via webhook.
-3. **AI severity suggestion** — On `/submit`, after user fills description, call a lightweight LLM endpoint to suggest severity and issue type. Pre-fills the form fields with "AI suggested" label. User can override.
+### High priority
+1. **AI severity suggestion** — On `/submit`, suggest severity and issue type from description
+2. **Recurring issue detection** — Embed descriptions and cluster similar tickets
+3. **Filtered CSV export** — Export respects active dashboard filters
 
-### Medium priority (operational maturity)
-4. **Customer portal** — Token-based public URL per ticket. Customer sees sanitized status + public comments only. Internal notes never exposed.
-5. **SLA escalation rules** — Supabase cron job checks every 30min. P1 with no response after 4h → auto-ping on-call engineer via Slack DM.
-6. **Recurring issue detection** — Embed ticket descriptions via OpenAI. Cluster similar embeddings. Surface "6 similar tickets this month" in ticket detail. Helps engineering spot patterns before they escalate.
+### Medium priority
+4. **SMS notifications** — Twilio alerts for P1 on-call
+5. **Call platform webhook** — Auto-populate call recording URL from monitoring system
+6. **Weekly management digest** — Email summary of SLA performance and top issues
 
 ### Longer term
-7. **Claude/MCP integration** — Expose ticket CRUD as MCP tools so engineers can query ("show me all open P1s") and update tickets from their AI coding workflow without leaving their editor.
-8. **Call context linking** — Structured fields for call recording URL, transcript snippet, call monitor name. Auto-populate from call monitoring platform webhook.
-9. **Management reporting** — Weekly email digest: SLA performance, top recurring issues, customer health by dealership. Exportable CSV.
+7. **Claude/MCP integration** — Ticket CRUD as MCP tools for AI coding workflows
+8. **Configurable SLA thresholds** — Admin UI or env-based SLA rules
+9. **Password reset / self-service** — Supabase magic link flow

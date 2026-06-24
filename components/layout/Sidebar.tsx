@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
     href: "/dashboard",
     label: "All Tickets",
     icon: Ticket,
-    roles: ["ENGINEER", "ADMIN"],
+    roles: ["OPERATOR", "ENGINEER", "ADMIN"],
     description: "View and manage all tickets",
   },
   {

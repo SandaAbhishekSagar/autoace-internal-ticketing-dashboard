@@ -6,7 +6,7 @@ export default async function HomePage() {
   if (!user) {
     redirect("/login");
   }
-  if (user.role === "ENGINEER" || user.role === "ADMIN") {
+  if (user.role === "ENGINEER" || user.role === "ADMIN" || user.role === "OPERATOR") {
     redirect("/dashboard");
   }
   redirect("/my-tickets");

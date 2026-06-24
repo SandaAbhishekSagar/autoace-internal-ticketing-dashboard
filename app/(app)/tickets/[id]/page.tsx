@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewTicket, canManageTickets } from "@/lib/ticket-access";
 import { prisma } from "@/lib/prisma";
 import { getSLAStatus } from "@/lib/sla";
 import { format, formatDistanceToNow } from "date-fns";
@@ -34,7 +35,8 @@ export default async function TicketDetailPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const isEngineerOrAdmin = ["ENGINEER", "ADMIN"].includes(user.role);
+  const canManage = canManageTickets(user.role);
+  const canSeeInternal = canManage;
 
   const ticket = await prisma.ticket.findUnique({
     where: { id: params.id },
@@ -42,7 +44,7 @@ export default async function TicketDetailPage({
       assignee: { select: { id: true, name: true } },
       submitter: { select: { id: true, name: true, email: true } },
       comments: {
-        where: isEngineerOrAdmin ? {} : { isInternal: false },
+        where: canSeeInternal ? {} : { isInternal: false },
         orderBy: { createdAt: "asc" },
         include: { author: { select: { role: true } } },
       },
@@ -55,14 +57,20 @@ export default async function TicketDetailPage({
 
   if (!ticket) notFound();
 
+  if (!canViewTicket(user, ticket)) {
+    notFound();
+  }
+
   const slaStatus = getSLAStatus(ticket.severity, ticket.createdAt, ticket.firstResponseAt);
   const shortIdStr = String(ticket.shortId).padStart(3, "0");
 
-  const engineers = await prisma.user.findMany({
-    where: { role: { in: ["ENGINEER", "ADMIN"] } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const engineers = canManage
+    ? await prisma.user.findMany({
+        where: { role: { in: ["ENGINEER", "ADMIN"] } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -87,6 +95,17 @@ export default async function TicketDetailPage({
               <SeverityBadge severity={ticket.severity} />
               <StatusBadge status={ticket.status} />
               <TypeBadge type={ticket.issueType} />
+              {ticket.linearIssueUrl && (
+                <a
+                  href={ticket.linearIssueUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full hover:bg-violet-100"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {ticket.linearIssueKey ?? "Linear"}
+                </a>
+              )}
             </div>
           </div>
 
@@ -228,22 +247,24 @@ export default async function TicketDetailPage({
           </div>
         </div>
 
-        {/* Right panel */}
-        <div className="w-full lg:w-80 flex-shrink-0">
-          <TicketActions
-            ticket={{
-              id: ticket.id,
-              status: ticket.status,
-              severity: ticket.severity,
-              priority: ticket.priority,
-              assigneeId: ticket.assigneeId,
-              issueType: ticket.issueType,
-            }}
-            engineers={engineers}
-            role={user.role}
-            currentUserId={user.id}
-          />
-        </div>
+        {/* Right panel — engineers/admins only */}
+        {canManage && (
+          <div className="w-full lg:w-80 flex-shrink-0">
+            <TicketActions
+              ticket={{
+                id: ticket.id,
+                status: ticket.status,
+                severity: ticket.severity,
+                priority: ticket.priority,
+                assigneeId: ticket.assigneeId,
+                issueType: ticket.issueType,
+              }}
+              engineers={engineers}
+              role={user.role}
+              currentUserId={user.id}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTicketSchema } from "@/lib/validations";
 import { getSLAStatus } from "@/lib/sla";
-import { sendTicketConfirmation } from "@/lib/email";
-import { notifyNewTicket } from "@/lib/slack";
+import { sendTicketConfirmation, sendAssignmentEmail } from "@/lib/email";
+import { notifyNewTicket, notifyAssignment } from "@/lib/slack";
 import { randomUUID } from "crypto";
 import type { Prisma, Status, Severity, IssueType } from "@prisma/client";
 
@@ -34,12 +34,16 @@ export async function POST(req: NextRequest) {
 
     // For P1/P2 tickets, auto-assign to the on-call engineer if no assignee supplied
     let autoAssigneeId: string | null = null;
+    let autoAssignee: { id: string; name: string; email: string } | null = null;
     if (["P1", "P2"].includes(data.severity)) {
       const onCall = await prisma.user.findFirst({
         where: { isOnCall: true, role: { in: ["ENGINEER", "ADMIN"] } },
-        select: { id: true },
+        select: { id: true, name: true, email: true },
       });
-      if (onCall) autoAssigneeId = onCall.id;
+      if (onCall) {
+        autoAssigneeId = onCall.id;
+        autoAssignee = onCall;
+      }
     }
 
     const trackingToken = randomUUID();
@@ -85,6 +89,7 @@ export async function POST(req: NextRequest) {
       shortId: ticket.shortId,
       title: ticket.title,
       severity: ticket.severity,
+      trackingToken: ticket.trackingToken,
     });
     notifyNewTicket({
       shortId: ticket.shortId,
@@ -95,6 +100,23 @@ export async function POST(req: NextRequest) {
       issueType: data.issueType,
       ticketUrl,
     });
+    if (autoAssignee) {
+      notifyAssignment({
+        shortId: ticket.shortId,
+        title: ticket.title,
+        severity: ticket.severity,
+        assigneeName: autoAssignee.name,
+        ticketUrl,
+      });
+      sendAssignmentEmail({
+        to: autoAssignee.email,
+        assigneeName: autoAssignee.name,
+        shortId: ticket.shortId,
+        title: ticket.title,
+        severity: ticket.severity,
+        ticketUrl,
+      });
+    }
 
     return NextResponse.json({
       id: ticket.id,
@@ -114,7 +136,7 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const dbUser = await prisma.user.findUnique({ where: { supabaseId: user.id } });
-    if (!dbUser || !["ENGINEER", "ADMIN"].includes(dbUser.role)) {
+    if (!dbUser || !["ENGINEER", "ADMIN", "OPERATOR"].includes(dbUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

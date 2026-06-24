@@ -125,3 +125,81 @@ export async function notifyStatusChange({
     ],
   });
 }
+
+export async function notifyAssignment({
+  shortId,
+  title,
+  severity,
+  assigneeName,
+  ticketUrl,
+}: {
+  shortId: number;
+  title: string;
+  severity: string;
+  assigneeName: string;
+  ticketUrl: string;
+}) {
+  const emoji = SEV_EMOJI[severity] ?? "⚪";
+  const ticketNum = `#${String(shortId).padStart(3, "0")}`;
+
+  await post({
+    text: `👤 Ticket ${ticketNum} assigned to ${assigneeName}`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `👤 ${emoji} <${ticketUrl}|${ticketNum}> assigned to *${assigneeName}*\n${title}`,
+        },
+      },
+    ],
+  });
+}
+
+export async function notifySlaEscalation({
+  shortId,
+  title,
+  severity,
+  onCallName,
+  ticketUrl,
+}: {
+  shortId: number;
+  title: string;
+  severity: string;
+  onCallName: string | null;
+  ticketUrl: string;
+}) {
+  const emoji = SEV_EMOJI[severity] ?? "🔴";
+  const ticketNum = `#${String(shortId).padStart(3, "0")}`;
+  const onCallLine = onCallName
+    ? `On-call engineer: *${onCallName}*`
+    : "No on-call engineer is currently set";
+
+  await post({
+    text: `⏰ SLA BREACH — ${ticketNum} needs immediate response`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `⏰ *SLA BREACH* ${emoji} <${ticketUrl}|${ticketNum}> — *${title}*\n${severity} ticket has no first response past SLA threshold.`,
+        },
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: onCallLine }],
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Respond Now" },
+            url: ticketUrl,
+            style: "danger",
+          },
+        ],
+      },
+    ],
+  });
+}

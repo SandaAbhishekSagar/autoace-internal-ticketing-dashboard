@@ -10,7 +10,7 @@ import { EngineerTable } from "./EngineerTable";
 import { CustomerTable } from "./CustomerTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AlertTriangle, Clock, BarChart3, RefreshCw, Target, Timer } from "lucide-react";
+import { AlertTriangle, Clock, BarChart3, RefreshCw, Target, Timer, TrendingUp } from "lucide-react";
 import type { KPIData } from "@/types";
 
 type Range = "7d" | "30d" | "all";
@@ -51,7 +51,7 @@ export function KPIDashboard() {
       <div>
         <PageHeader title="Operations Dashboard" action={<RangeToggle />} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {[...Array(8)].map((_, i) => (
+          {[...Array(9)].map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
@@ -118,6 +118,13 @@ export function KPIDashboard() {
           value={`${data.reopenRate}%`}
           subtext="resolved then reopened"
           icon={<RefreshCw className="h-5 w-5" />}
+        />
+        <KPISummaryCard
+          label="Escalation Rate"
+          value={`${data.escalationRate}%`}
+          subtext={`${data.escalationCount} tickets escalated`}
+          highlight={data.escalationRate > 5}
+          icon={<TrendingUp className="h-5 w-5" />}
         />
       </div>
 

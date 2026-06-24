@@ -111,6 +111,29 @@ export async function GET(req: NextRequest) {
         ? Math.round((reopened / resolved.length) * 100)
         : 0;
 
+    // Escalation rate (manual + auto SLA escalations)
+    const ticketIds = allTickets.map((t) => t.id);
+    const escalatedRows =
+      ticketIds.length > 0
+        ? await prisma.comment.findMany({
+            where: {
+              ticketId: { in: ticketIds },
+              isInternal: true,
+              OR: [
+                { body: { contains: "Escalated to management", mode: "insensitive" } },
+                { body: { contains: "Auto SLA escalation", mode: "insensitive" } },
+              ],
+            },
+            select: { ticketId: true },
+            distinct: ["ticketId"],
+          })
+        : [];
+    const escalationCount = escalatedRows.length;
+    const escalationRate =
+      allTickets.length > 0
+        ? Math.round((escalationCount / allTickets.length) * 1000) / 10
+        : 0;
+
     // By type
     const typeCount: Record<string, number> = {};
     allTickets.forEach((t) => {
@@ -252,6 +275,8 @@ export async function GET(req: NextRequest) {
       slaBreachCount,
       slaBreachRate,
       reopenRate,
+      escalationCount,
+      escalationRate,
       byType,
       byStatus,
       bySeverity,

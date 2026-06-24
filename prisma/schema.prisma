@@ -87,6 +87,10 @@ model Ticket {
   trackingToken    String?         @unique
   callRecordingUrl String?
   callMonitorName  String?
+  linearIssueId    String?         @unique
+  linearIssueKey   String?
+  linearIssueUrl   String?
+  slaEscalatedAt   DateTime?
   comments         Comment[]
   history          StatusHistory[]
 }
