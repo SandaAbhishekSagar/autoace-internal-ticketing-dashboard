@@ -41,6 +41,10 @@ export async function GET() {
         resolvedAt: true,
         closedAt: true,
         reopenedAt: true,
+        links: true,
+        attachmentUrls: true,
+        callRecordingUrl: true,
+        callMonitorName: true,
         _count: { select: { comments: { where: { isInternal: false } } } },
         comments: {
           where: { isInternal: false },

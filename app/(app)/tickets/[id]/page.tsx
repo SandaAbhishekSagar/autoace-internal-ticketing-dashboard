@@ -12,7 +12,7 @@ import { SLABanner } from "@/components/tickets/SLABanner";
 import { StatusHistoryList } from "@/components/tickets/StatusHistoryList";
 import { TicketActions } from "@/components/tickets/TicketActions";
 import { CommentThread } from "@/components/tickets/CommentThread";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Paperclip, Phone, ExternalLink } from "lucide-react";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const ticket = await prisma.ticket.findUnique({
@@ -132,16 +132,17 @@ export default async function TicketDetailPage({
               </div>
               {ticket.links.length > 0 && (
                 <div className="col-span-2">
-                  <p className="text-gray-500">Links</p>
-                  <div className="space-y-1 mt-1">
+                  <p className="text-gray-500 mb-1">Links</p>
+                  <div className="space-y-1">
                     {ticket.links.map((link) => (
                       <a
                         key={link}
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm block truncate"
+                        className="flex items-center gap-1.5 text-blue-600 hover:underline text-sm truncate"
                       >
+                        <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                         {link}
                       </a>
                     ))}
@@ -149,6 +150,58 @@ export default async function TicketDetailPage({
                 </div>
               )}
             </div>
+
+            {/* Attachments */}
+            {ticket.attachmentUrls.length > 0 && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <Paperclip className="h-4 w-4" /> Attachments
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {ticket.attachmentUrls.map((url, i) => {
+                    const filename = url.split("/").pop()?.replace(/^\d+_/, "") ?? `file-${i + 1}`;
+                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                    return isImage ? (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                        className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-colors">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={filename} className="h-24 w-36 object-cover" />
+                        <p className="text-xs text-gray-500 px-2 py-1 truncate max-w-[144px]">{filename}</p>
+                      </a>
+                    ) : (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors">
+                        <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate max-w-[200px]">{filename}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Call context */}
+            {(ticket.callRecordingUrl || ticket.callMonitorName) && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <Phone className="h-4 w-4" /> Call Context
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {ticket.callRecordingUrl && (
+                    <a href={ticket.callRecordingUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-blue-600 hover:underline">
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                      Call recording
+                    </a>
+                  )}
+                  {ticket.callMonitorName && (
+                    <p className="text-gray-700">
+                      Reviewed by <span className="font-medium">{ticket.callMonitorName}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Timeline</h3>

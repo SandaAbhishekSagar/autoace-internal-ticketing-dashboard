@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@prisma/client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -14,6 +15,7 @@ import {
   LogOut,
   HelpCircle,
   X,
+  PhoneCall,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -80,6 +82,15 @@ export function Sidebar({ role, userName, userEmail, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
+  const [onCallName, setOnCallName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!["ENGINEER", "ADMIN"].includes(role)) return;
+    fetch("/api/oncall")
+      .then((r) => r.json())
+      .then((data) => setOnCallName(data.onCall?.name ?? null))
+      .catch(() => {});
+  }, [role]);
 
   const visible = navItems.filter((item) => item.roles.includes(role));
 
@@ -192,6 +203,26 @@ export function Sidebar({ role, userName, userEmail, onClose }: SidebarProps) {
           )}
         </div>
       </nav>
+
+      {/* On-call status — engineers/admins only */}
+      {["ENGINEER", "ADMIN"].includes(role) && (
+        <div className="px-3 py-2 border-t border-gray-700/60">
+          <Link href="/admin/users" onClick={onClose}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors group">
+            <div className={cn(
+              "w-2 h-2 rounded-full flex-shrink-0",
+              onCallName ? "bg-green-400 animate-pulse" : "bg-gray-500"
+            )} />
+            <PhoneCall className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold leading-tight">On-call</p>
+              <p className="text-xs text-gray-300 truncate leading-tight">
+                {onCallName ?? "No one assigned"}
+              </p>
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* Sign out */}
       <div className="px-3 py-3 border-t border-gray-700/60">

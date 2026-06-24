@@ -21,6 +21,8 @@ import {
   Clock,
   MessageCircle,
   ArrowUpRight,
+  Paperclip,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import type { Role, Status, Severity } from "@prisma/client";
@@ -39,6 +41,10 @@ interface MyTicket {
   resolvedAt: string | null;
   closedAt: string | null;
   reopenedAt: string | null;
+  links: string[];
+  attachmentUrls: string[];
+  callRecordingUrl: string | null;
+  callMonitorName: string | null;
   comments: import("@/types").CommentItem[];
   history: import("@/types").StatusHistoryItem[];
 }
@@ -254,6 +260,73 @@ export function MyTicketsList({ role }: MyTicketsListProps) {
                       {selected.description}
                     </p>
                   </div>
+
+                  {/* Links */}
+                  {selected.links && selected.links.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        Links
+                      </h4>
+                      <div className="space-y-1.5">
+                        {selected.links.map((link, i) => (
+                          <a key={i} href={link} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline break-all">
+                            <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                            {link}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attachments */}
+                  {selected.attachmentUrls && selected.attachmentUrls.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Paperclip className="h-3.5 w-3.5" /> Attachments
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selected.attachmentUrls.map((url, i) => {
+                          const filename = url.split("/").pop()?.replace(/^\d+_/, "") ?? `file-${i + 1}`;
+                          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                          return isImage ? (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-colors">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt={filename} className="h-20 w-32 object-cover" />
+                            </a>
+                          ) : (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors">
+                              <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate max-w-[160px]">{filename}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Call context */}
+                  {(selected.callRecordingUrl || selected.callMonitorName) && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-blue-800 uppercase tracking-wider">
+                        <Phone className="h-3.5 w-3.5" /> Call Context
+                      </div>
+                      {selected.callRecordingUrl && (
+                        <a href={selected.callRecordingUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-blue-700 hover:underline">
+                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                          Call recording
+                        </a>
+                      )}
+                      {selected.callMonitorName && (
+                        <p className="text-sm text-blue-800">
+                          Reviewed by <span className="font-medium">{selected.callMonitorName}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Meta */}
                   <div className="grid grid-cols-2 gap-3">

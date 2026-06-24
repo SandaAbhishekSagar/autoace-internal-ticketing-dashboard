@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import type { Status, Severity, Priority, IssueType, Role } from "@prisma/client";
 
@@ -43,6 +43,9 @@ export function TicketActions({ ticket, engineers, role }: TicketActionsProps) {
   const [saving, setSaving] = useState(false);
   const [showDanger, setShowDanger] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
+  const [escalating, setEscalating] = useState(false);
+  const [escalateNote, setEscalateNote] = useState("");
+  const [showEscalate, setShowEscalate] = useState(false);
 
   const isEngineerOrAdmin = ["ENGINEER", "ADMIN"].includes(role);
   const isAdmin = role === "ADMIN";
@@ -126,6 +129,29 @@ export function TicketActions({ ticket, engineers, role }: TicketActionsProps) {
       router.refresh();
     } else {
       toast.error("Failed to reopen ticket");
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!escalateNote.trim()) { toast.error("Please describe why this ticket needs escalation"); return; }
+    setEscalating(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticket.id}/escalate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: escalateNote }),
+      });
+      if (res.ok) {
+        toast.success("Escalated — management has been notified via Slack");
+        setShowEscalate(false);
+        setEscalateNote("");
+        router.refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Escalation failed");
+      }
+    } finally {
+      setEscalating(false);
     }
   };
 
@@ -280,6 +306,43 @@ export function TicketActions({ ticket, engineers, role }: TicketActionsProps) {
             >
               ↩ Reopen
             </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Escalation */}
+      <Card className="border-orange-200">
+        <CardContent className="pt-5">
+          <button
+            className="flex items-center gap-2 text-sm text-orange-600 font-medium w-full"
+            onClick={() => setShowEscalate(!showEscalate)}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Escalate to Management
+            <ChevronDown
+              className={`h-4 w-4 ml-auto transition-transform ${showEscalate ? "rotate-180" : ""}`}
+            />
+          </button>
+          {showEscalate && (
+            <div className="mt-4 space-y-3">
+              <p className="text-xs text-gray-500">
+                This notifies management via Slack and logs an internal comment.
+              </p>
+              <textarea
+                value={escalateNote}
+                onChange={(e) => setEscalateNote(e.target.value)}
+                placeholder="Why does this need escalation? (SLA breach, customer impact, blocking issue…)"
+                rows={3}
+                className="w-full text-sm border border-orange-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              />
+              <Button
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={escalating || !escalateNote.trim()}
+                onClick={handleEscalate}
+              >
+                {escalating ? "Escalating…" : "🚨 Escalate Now"}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

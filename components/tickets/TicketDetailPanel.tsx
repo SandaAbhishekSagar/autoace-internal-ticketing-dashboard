@@ -120,6 +120,24 @@ export function TicketDetailPanel({ ticketId, onClose, role }: TicketDetailPanel
                   </p>
                 </div>
 
+                {/* Links */}
+                {ticket.links && ticket.links.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                      Links
+                    </h4>
+                    <div className="space-y-1.5">
+                      {ticket.links.map((link, i) => (
+                        <a key={i} href={link} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline truncate">
+                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                          {link}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Attachments */}
                 {ticket.attachmentUrls && ticket.attachmentUrls.length > 0 && (
                   <div>
