@@ -42,22 +42,58 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(path, buffer, { contentType: file.type, upsert: false });
+      .upload(path, buffer, { contentType: file.type, upsert: true });
 
     if (error) {
-      console.error("Storage upload error:", error);
-      // Friendly message if bucket doesn't exist yet
-      if (error.message.includes("not found") || error.message.includes("Bucket")) {
+      console.error("Storage upload error:", {
+        message: error.message,
+        statusCode: (error as { statusCode?: string }).statusCode,
+        name: error.name,
+        path,
+        size: file.size,
+        type: file.type,
+      });
+      const msg = error.message ?? "Upload failed";
+      const statusCode = (error as { statusCode?: string }).statusCode;
+      if (
+        statusCode === "404" ||
+        msg.toLowerCase().includes("bucket not found") ||
+        msg.includes("not found")
+      ) {
         return NextResponse.json(
           {
             error:
               'Storage bucket "ticket-attachments" not found. ' +
-              "Create a public bucket with that name in Supabase → Storage.",
+              "Run supabase/storage-setup.sql in Supabase SQL Editor, or create the bucket in Storage.",
           },
           { status: 503 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (
+        msg.toLowerCase().includes("size") ||
+        msg.toLowerCase().includes("too large") ||
+        (error as { statusCode?: string }).statusCode === "413"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              `File exceeds Supabase Storage size limit (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
+              "In Supabase → Storage → Settings, raise the global or bucket file size limit.",
+          },
+          { status: 413 }
+        );
+      }
+      if (msg.toLowerCase().includes("mime") || msg.toLowerCase().includes("content type")) {
+        return NextResponse.json(
+          {
+            error:
+              `Storage bucket rejected type "${file.type}". ` +
+              "In Supabase → Storage → ticket-attachments → Settings, allow image/png or remove MIME restrictions.",
+          },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
