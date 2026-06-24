@@ -1,10 +1,10 @@
--- Add on-call flag to User
-ALTER TABLE "User" ADD COLUMN "isOnCall" BOOLEAN NOT NULL DEFAULT false;
+-- Add on-call flag to User (idempotent — column may already exist from manual SQL)
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isOnCall" BOOLEAN NOT NULL DEFAULT false;
 
 -- Add customer tracking token to Ticket
-ALTER TABLE "Ticket" ADD COLUMN "trackingToken" TEXT;
-CREATE UNIQUE INDEX "Ticket_trackingToken_key" ON "Ticket"("trackingToken");
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "trackingToken" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "Ticket_trackingToken_key" ON "Ticket"("trackingToken");
 
 -- Add call context fields to Ticket
-ALTER TABLE "Ticket" ADD COLUMN "callRecordingUrl" TEXT;
-ALTER TABLE "Ticket" ADD COLUMN "callMonitorName" TEXT;
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "callRecordingUrl" TEXT;
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "callMonitorName" TEXT;
