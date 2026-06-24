@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 340" fill="none">
+  <rect width="800" height="340" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="400" y="32" text-anchor="middle" fill="#0f172a" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Role Access Matrix</text>
+
+  <!-- Header row -->
+  <text x="120" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">ROLE</text>
+  <text x="280" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">SUBMIT</text>
+  <text x="380" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">VIEW ALL</text>
+  <text x="490" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">TRIAGE</text>
+  <text x="590" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">KPI</text>
+  <text x="690" y="68" fill="#64748b" font-family="system-ui" font-size="11" font-weight="600">ADMIN</text>
+  <line x1="40" y1="78" x2="760" y2="78" stroke="#e2e8f0"/>
+
+  <!-- SUBMITTER -->
+  <rect x="40" y="88" width="720" height="52" rx="8" fill="#f8fafc"/>
+  <text x="60" y="120" fill="#0f172a" font-family="system-ui" font-size="13" font-weight="600">Submitter</text>
+  <circle cx="290" cy="114" r="10" fill="#22c55e"/><circle cx="390" cy="114" r="10" fill="#ef4444"/><circle cx="500" cy="114" r="10" fill="#ef4444"/><circle cx="600" cy="114" r="10" fill="#ef4444"/><circle cx="700" cy="114" r="10" fill="#ef4444"/>
+
+  <!-- OPERATOR -->
+  <rect x="40" y="148" width="720" height="52" rx="8" fill="#eff6ff"/>
+  <text x="60" y="180" fill="#1e40af" font-family="system-ui" font-size="13" font-weight="600">Operator</text>
+  <text x="200" y="180" fill="#64748b" font-family="system-ui" font-size="10">read-only</text>
+  <circle cx="290" cy="174" r="10" fill="#22c55e"/><circle cx="390" cy="174" r="10" fill="#22c55e"/><circle cx="500" cy="174" r="10" fill="#ef4444"/><circle cx="600" cy="174" r="10" fill="#ef4444"/><circle cx="700" cy="174" r="10" fill="#ef4444"/>
+
+  <!-- ENGINEER -->
+  <rect x="40" y="208" width="720" height="52" rx="8" fill="#f0fdf4"/>
+  <text x="60" y="240" fill="#166534" font-family="system-ui" font-size="13" font-weight="600">Engineer</text>
+  <circle cx="290" cy="234" r="10" fill="#22c55e"/><circle cx="390" cy="234" r="10" fill="#22c55e"/><circle cx="500" cy="234" r="10" fill="#22c55e"/><circle cx="600" cy="234" r="10" fill="#22c55e"/><circle cx="700" cy="234" r="10" fill="#ef4444"/>
+
+  <!-- ADMIN -->
+  <rect x="40" y="268" width="720" height="52" rx="8" fill="#faf5ff"/>
+  <text x="60" y="300" fill="#6b21a8" font-family="system-ui" font-size="13" font-weight="600">Admin</text>
+  <circle cx="290" cy="294" r="10" fill="#22c55e"/><circle cx="390" cy="294" r="10" fill="#22c55e"/><circle cx="500" cy="294" r="10" fill="#22c55e"/><circle cx="600" cy="294" r="10" fill="#22c55e"/><circle cx="700" cy="294" r="10" fill="#22c55e"/>
+
+  <text x="400" y="332" text-anchor="middle" fill="#94a3b8" font-family="system-ui" font-size="10">=â allowed · =4 denied · enforced server-side on every API route</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" fill="none">
+  <rect width="720" height="320" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="360" y="30" text-anchor="middle" fill="#0f172a" font-family="system-ui,sans-serif" font-size="18" font-weight="700">App Map</text>
+
+  <!-- Public -->
+  <rect x="40" y="55" width="200" height="120" rx="12" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="140" y="82" text-anchor="middle" fill="#1e40af" font-family="system-ui" font-size="13" font-weight="700">< Public</text>
+  <text x="60" y="108" fill="#1d4ed8" font-family="system-ui" font-size="12">/submit</text>
+  <text x="60" y="128" fill="#1d4ed8" font-family="system-ui" font-size="12">/login</text>
+  <text x="60" y="148" fill="#1d4ed8" font-family="system-ui" font-size="12">/track/[token]</text>
+  <text x="60" y="168" fill="#64748b" font-family="system-ui" font-size="10">No login needed</text>
+
+  <!-- All users -->
+  <rect x="260" y="55" width="200" height="120" rx="12" fill="#d1fae5" stroke="#059669"/>
+  <text x="360" y="82" text-anchor="middle" fill="#065f46" font-family="system-ui" font-size="13" font-weight="700">=d All roles</text>
+  <text x="280" y="108" fill="#047857" font-family="system-ui" font-size="12">/my-tickets</text>
+  <text x="280" y="128" fill="#047857" font-family="system-ui" font-size="12">/tickets/[id]</text>
+  <text x="280" y="148" fill="#64748b" font-family="system-ui" font-size="10">Submitters: own tickets</text>
+  <text x="280" y="168" fill="#64748b" font-family="system-ui" font-size="10">Operators: read-only</text>
+
+  <!-- Engineering -->
+  <rect x="480" y="55" width="200" height="120" rx="12" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="580" y="82" text-anchor="middle" fill="#5b21b6" font-family="system-ui" font-size="13" font-weight="700">=' Engineering</text>
+  <text x="500" y="108" fill="#6d28d9" font-family="system-ui" font-size="12">/dashboard</text>
+  <text x="500" y="128" fill="#6d28d9" font-family="system-ui" font-size="12">/kpi</text>
+  <text x="500" y="148" fill="#64748b" font-family="system-ui" font-size="10">Triage · assign · export</text>
+  <text x="500" y="168" fill="#64748b" font-family="system-ui" font-size="10">Charts &amp; SLA metrics</text>
+
+  <!-- Admin -->
+  <rect x="200" y="200" width="320" height="90" rx="12" fill="#fce7f3" stroke="#db2777"/>
+  <text x="360" y="230" text-anchor="middle" fill="#9d174d" font-family="system-ui" font-size="13" font-weight="700">™ Admin only</text>
+  <text x="220" y="258" fill="#be185d" font-family="system-ui" font-size="12">/admin/users  roles · on-call · invite</text>
+  <text x="220" y="278" fill="#64748b" font-family="system-ui" font-size="10">Exclusive on-call toggle clears other engineers</text>
+
+  <!-- Arrows -->
+  <path d="M140 175 L140 195 L360 195 L360 200" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+  <path d="M360 175 L360 190" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+  <path d="M580 175 L580 195 L360 195" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+</svg>
