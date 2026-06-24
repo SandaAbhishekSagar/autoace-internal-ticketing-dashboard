@@ -31,6 +31,7 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
     status: [],
     severity: [],
     type: [],
+    priority: [],
     assigneeId: "",
   });
 
@@ -45,6 +46,7 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
     if (filters.status.length) params.set("status", filters.status.join(","));
     if (filters.severity.length) params.set("severity", filters.severity.join(","));
     if (filters.type.length) params.set("type", filters.type.join(","));
+    if (filters.priority.length) params.set("priority", filters.priority.join(","));
     if (filters.assigneeId) params.set("assigneeId", filters.assigneeId);
 
     try {
@@ -233,6 +235,7 @@ export function TicketTable({ role, currentUserId }: TicketTableProps) {
                             status: [],
                             severity: [],
                             type: [],
+                            priority: [],
                             assigneeId: "",
                           })
                         }

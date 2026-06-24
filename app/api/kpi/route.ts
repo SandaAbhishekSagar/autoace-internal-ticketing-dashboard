@@ -78,6 +78,20 @@ export async function GET(req: NextRequest) {
           ) / 10
         : null;
 
+    // Avg time to triage
+    const triaged = allTickets.filter((t) => t.triagedAt);
+    const avgTimeToTriageHours =
+      triaged.length > 0
+        ? Math.round(
+            (triaged.reduce((acc, t) => {
+              return acc + (new Date(t.triagedAt!).getTime() - new Date(t.createdAt).getTime());
+            }, 0) /
+              triaged.length /
+              3_600_000) *
+              10
+          ) / 10
+        : null;
+
     // SLA breaches
     const slaBreachCount = allTickets.filter((t) => {
       if (openStatuses.includes(t.status)) {
@@ -85,6 +99,10 @@ export async function GET(req: NextRequest) {
       }
       return false;
     }).length;
+    const slaBreachRate =
+      allTickets.length > 0
+        ? Math.round((slaBreachCount / allTickets.length) * 1000) / 10
+        : 0;
 
     // Reopen rate
     const reopened = allTickets.filter((t) => t.reopenedAt).length;
@@ -230,7 +248,9 @@ export async function GET(req: NextRequest) {
       criticalOpenCount,
       avgFirstResponseHours,
       avgResolutionHours,
+      avgTimeToTriageHours,
       slaBreachCount,
+      slaBreachRate,
       reopenRate,
       byType,
       byStatus,

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SeveritySelector } from "./SeveritySelector";
+import { Paperclip, X as XIcon, Loader2 } from "lucide-react";
 
 type IssueTypeKey = "BUG" | "CALL_FAILURE" | "CUSTOMER_ISSUE" | "INTEGRATION" | "OPS_REQUEST";
 type SeverityKey = "P1" | "P2" | "P3" | "P4";
@@ -35,6 +36,13 @@ interface SuccessInfo {
   email: string;
 }
 
+interface AttachedFile {
+  file: File;
+  status: "pending" | "uploading" | "done" | "error";
+  url?: string;
+  error?: string;
+}
+
 export function TicketForm() {
   const [form, setForm] = useState<FormState>({
     submitterName: "",
@@ -49,9 +57,48 @@ export function TicketForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = (field: keyof FormState, value: string | null) =>
     setForm((f) => ({ ...f, [field]: value }));
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    if (!picked.length) return;
+    const newItems: AttachedFile[] = picked
+      .slice(0, 5 - attachedFiles.length)
+      .map((file) => ({ file, status: "pending" }));
+    setAttachedFiles((prev) => [...prev, ...newItems]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (idx: number) =>
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
+
+  const uploadFiles = async (): Promise<string[]> => {
+    const urls: string[] = [];
+    const updated = [...attachedFiles];
+    for (let i = 0; i < updated.length; i++) {
+      const item = updated[i];
+      if (item.status === "done" && item.url) { urls.push(item.url); continue; }
+      updated[i] = { ...item, status: "uploading" };
+      setAttachedFiles([...updated]);
+      try {
+        const fd = new FormData();
+        fd.append("file", item.file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Upload failed");
+        updated[i] = { ...item, status: "done", url: data.url };
+        urls.push(data.url);
+      } catch (err) {
+        updated[i] = { ...item, status: "error", error: (err as Error).message };
+      }
+      setAttachedFiles([...updated]);
+    }
+    return urls;
+  };
 
   const validate = (): boolean => {
     const errs: FormErrors = {};
@@ -74,6 +121,16 @@ export function TicketForm() {
     if (!validate()) return;
     setSubmitting(true);
     try {
+      // Upload attachments first
+      const attachmentUrls = attachedFiles.length > 0 ? await uploadFiles() : [];
+
+      // Abort if any upload failed
+      const hasUploadError = attachedFiles.some((f) => f.status === "error");
+      if (hasUploadError) {
+        setErrors({ description: "One or more file uploads failed. Please remove them and try again." });
+        return;
+      }
+
       const body: Record<string, unknown> = {
         submitterName: form.submitterName,
         submitterEmail: form.submitterEmail,
@@ -84,6 +141,7 @@ export function TicketForm() {
       };
       if (form.customerName) body.customerName = form.customerName;
       if (form.link) body.links = [form.link];
+      if (attachmentUrls.length > 0) body.attachmentUrls = attachmentUrls;
 
       const res = await fetch("/api/tickets", {
         method: "POST",
@@ -117,6 +175,7 @@ export function TicketForm() {
     });
     setErrors({});
     setSuccess(null);
+    setAttachedFiles([]);
   };
 
   if (success) {
@@ -301,6 +360,62 @@ export function TicketForm() {
           placeholder="Call recording URL, screenshot, or related link"
           className="mt-1"
         />
+      </div>
+
+      {/* File attachments */}
+      <div>
+        <Label>Attachments</Label>
+        <p className="text-xs text-gray-500 mt-0.5 mb-2">
+          Images, PDFs, videos — up to 5 files, 10 MB each
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.txt,.csv,video/mp4,video/quicktime"
+          className="hidden"
+          onChange={handleFilePick}
+        />
+        {attachedFiles.length < 5 && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full justify-center"
+          >
+            <Paperclip className="h-4 w-4" />
+            Attach files
+          </button>
+        )}
+        {attachedFiles.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {attachedFiles.map((item, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm rounded-lg border border-gray-200 px-3 py-2 bg-gray-50">
+                {item.status === "uploading" ? (
+                  <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin flex-shrink-0" />
+                ) : item.status === "done" ? (
+                  <span className="text-green-500 flex-shrink-0">✓</span>
+                ) : item.status === "error" ? (
+                  <span className="text-red-500 flex-shrink-0">✗</span>
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                )}
+                <span className="truncate flex-1 text-gray-700">{item.file.name}</span>
+                {item.error && (
+                  <span className="text-xs text-red-500 truncate max-w-[120px]">{item.error}</span>
+                )}
+                {item.status !== "uploading" && (
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                  >
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={submitting}>

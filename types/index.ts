@@ -70,7 +70,9 @@ export interface KPIData {
   criticalOpenCount: number;
   avgFirstResponseHours: number | null;
   avgResolutionHours: number | null;
+  avgTimeToTriageHours: number | null;
   slaBreachCount: number;
+  slaBreachRate: number;
   reopenRate: number;
   byType: { type: IssueType; count: number }[];
   byStatus: { status: Status; count: number }[];

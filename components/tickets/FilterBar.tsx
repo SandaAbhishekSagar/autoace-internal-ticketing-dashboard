@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
-import type { Status, Severity, IssueType } from "@prisma/client";
+import type { Status, Severity, IssueType, Priority } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 export interface Filters {
@@ -12,6 +12,7 @@ export interface Filters {
   status: Status[];
   severity: Severity[];
   type: IssueType[];
+  priority: Priority[];
   assigneeId: string;
 }
 
@@ -45,8 +46,15 @@ const typeOptions: { value: IssueType; label: string; icon: string }[] = [
   { value: "OPS_REQUEST", label: "Ops", icon: "⚙️" },
 ];
 
+const priorityOptions: { value: Priority; label: string; dot: string }[] = [
+  { value: "URGENT", label: "Urgent", dot: "bg-red-600" },
+  { value: "HIGH", label: "High", dot: "bg-orange-500" },
+  { value: "MEDIUM", label: "Medium", dot: "bg-yellow-400" },
+  { value: "LOW", label: "Low", dot: "bg-gray-300" },
+];
+
 const isFiltersActive = (f: Filters) =>
-  f.search || f.status.length > 0 || f.severity.length > 0 || f.type.length > 0 || f.assigneeId;
+  f.search || f.status.length > 0 || f.severity.length > 0 || f.type.length > 0 || f.priority.length > 0 || f.assigneeId;
 
 export function FilterBar({ filters, onChange, engineers }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
@@ -55,12 +63,13 @@ export function FilterBar({ filters, onChange, engineers }: FilterBarProps) {
     arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
 
   const clearFilters = () =>
-    onChange({ search: "", status: [], severity: [], type: [], assigneeId: "" });
+    onChange({ search: "", status: [], severity: [], type: [], priority: [], assigneeId: "" });
 
   const activeCount =
     filters.status.length +
     filters.severity.length +
     filters.type.length +
+    filters.priority.length +
     (filters.assigneeId ? 1 : 0);
 
   return (
@@ -178,6 +187,32 @@ export function FilterBar({ filters, onChange, engineers }: FilterBarProps) {
                     )}
                   >
                     <span>{opt.icon}</span>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Priority */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-gray-500 w-16 flex-shrink-0">Priority</span>
+            <div className="flex flex-wrap gap-1.5">
+              {priorityOptions.map((opt) => {
+                const active = filters.priority.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onChange({ ...filters, priority: toggle(filters.priority, opt.value) })}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-xs font-medium transition-all border flex items-center gap-1.5",
+                      active
+                        ? "bg-gray-800 text-white border-gray-800 shadow-sm"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <span className={cn("w-2 h-2 rounded-full", opt.dot)} />
                     {opt.label}
                   </button>
                 );

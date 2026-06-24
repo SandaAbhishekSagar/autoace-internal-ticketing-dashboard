@@ -10,6 +10,7 @@ export const createTicketSchema = z.object({
   customerName: z.string().optional(),
   dealershipName: z.string().optional(),
   links: z.array(z.string().url()).optional(),
+  attachmentUrls: z.array(z.string().url()).optional(),
 });
 
 export const updateTicketSchema = z.object({

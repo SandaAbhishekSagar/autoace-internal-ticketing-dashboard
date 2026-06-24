@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateTicketSchema } from "@/lib/validations";
 import { getSLAStatus } from "@/lib/sla";
+import { sendStatusUpdateEmail } from "@/lib/email";
 import type { Status } from "@prisma/client";
 
 export async function GET(
@@ -123,6 +124,17 @@ export async function PATCH(
 
       return updated;
     });
+
+    // Send status update email when status changes (fire-and-forget)
+    if (data.status && data.status !== existing.status) {
+      sendStatusUpdateEmail({
+        to: existing.submitterEmail,
+        submitterName: existing.submitterName,
+        shortId: existing.shortId,
+        title: existing.title,
+        newStatus: data.status,
+      });
+    }
 
     return NextResponse.json(ticket);
   } catch (err) {

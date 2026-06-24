@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, X, Building2, User2, Clock, Calendar } from "lucide-react";
+import { ExternalLink, X, Building2, User2, Clock, Calendar, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
 import { StatusBadge } from "./StatusBadge";
@@ -119,6 +119,34 @@ export function TicketDetailPanel({ ticketId, onClose, role }: TicketDetailPanel
                     {ticket.description}
                   </p>
                 </div>
+
+                {/* Attachments */}
+                {ticket.attachmentUrls && ticket.attachmentUrls.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" /> Attachments
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {ticket.attachmentUrls.map((url, i) => {
+                        const filename = url.split("/").pop()?.replace(/^\d+_/, "") ?? `file-${i + 1}`;
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                        return isImage ? (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                            className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-colors">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt={filename} className="h-20 w-32 object-cover" />
+                          </a>
+                        ) : (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors">
+                            <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="truncate max-w-[180px]">{filename}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Metadata grid */}
                 <div className="grid grid-cols-2 gap-3">

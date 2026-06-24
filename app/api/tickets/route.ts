@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTicketSchema } from "@/lib/validations";
 import { getSLAStatus } from "@/lib/sla";
+import { sendTicketConfirmation } from "@/lib/email";
 import type { Prisma, Status, Severity, IssueType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
           customerName: data.customerName,
           dealershipName: data.dealershipName,
           links: data.links ?? [],
+          attachmentUrls: data.attachmentUrls ?? [],
         },
       });
       await tx.statusHistory.create({
@@ -53,6 +55,15 @@ export async function POST(req: NextRequest) {
         },
       });
       return t;
+    });
+
+    // Send confirmation email (fire-and-forget, non-blocking)
+    sendTicketConfirmation({
+      to: data.submitterEmail,
+      submitterName: data.submitterName,
+      shortId: ticket.shortId,
+      title: ticket.title,
+      severity: ticket.severity,
     });
 
     return NextResponse.json({ id: ticket.id, shortId: ticket.shortId }, { status: 201 });
