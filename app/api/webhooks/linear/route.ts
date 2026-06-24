@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { mapLinearStateToStatus } from "@/lib/linear";
 import type { Status } from "@prisma/client";
@@ -14,18 +15,37 @@ interface LinearWebhookPayload {
   };
 }
 
+function verifyLinearSignature(
+  rawBody: string,
+  signature: string | null,
+  secret: string
+): boolean {
+  if (!signature) return false;
+  try {
+    const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+    const sigBuf = Buffer.from(signature, "hex");
+    const expBuf = Buffer.from(expected, "hex");
+    if (sigBuf.length !== expBuf.length) return false;
+    return timingSafeEqual(sigBuf, expBuf);
+  } catch {
+    return false;
+  }
+}
+
 /** Linear webhook: sync issue state changes back to AutoAce tickets. */
 export async function POST(req: NextRequest) {
   const secret = process.env.LINEAR_WEBHOOK_SECRET;
+  const rawBody = await req.text();
+
   if (secret) {
-    const header = req.headers.get("linear-signature");
-    if (header !== secret) {
+    const signature = req.headers.get("linear-signature");
+    if (!verifyLinearSignature(rawBody, signature, secret)) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   }
 
   try {
-    const payload = (await req.json()) as LinearWebhookPayload;
+    const payload = JSON.parse(rawBody) as LinearWebhookPayload;
 
     if (payload.type !== "Issue" || !["create", "update"].includes(payload.action)) {
       return NextResponse.json({ ok: true, skipped: true });
