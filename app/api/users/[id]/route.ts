@@ -23,10 +23,14 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
+    const updateData: { role?: "SUBMITTER" | "OPERATOR" | "ENGINEER" | "ADMIN"; isOnCall?: boolean } = {};
+    if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
+    if (parsed.data.isOnCall !== undefined) updateData.isOnCall = parsed.data.isOnCall;
+
     const updated = await prisma.user.update({
       where: { id: params.id },
-      data: { role: parsed.data.role },
-      select: { id: true, name: true, email: true, role: true },
+      data: updateData,
+      select: { id: true, name: true, email: true, role: true, isOnCall: true },
     });
 
     return NextResponse.json(updated);

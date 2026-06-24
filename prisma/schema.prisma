@@ -50,6 +50,7 @@ model User {
   name             String
   email            String         @unique
   role             Role           @default(SUBMITTER)
+  isOnCall         Boolean        @default(false)
   createdAt        DateTime       @default(now())
   submittedTickets Ticket[]       @relation("SubmittedBy")
   assignedTickets  Ticket[]       @relation("AssignedTo")
@@ -82,9 +83,12 @@ model Ticket {
   triagedAt       DateTime?
   resolvedAt      DateTime?
   closedAt        DateTime?
-  reopenedAt      DateTime?
-  comments        Comment[]
-  history         StatusHistory[]
+  reopenedAt       DateTime?
+  trackingToken    String?         @unique
+  callRecordingUrl String?
+  callMonitorName  String?
+  comments         Comment[]
+  history          StatusHistory[]
 }
 
 model Comment {

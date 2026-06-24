@@ -11,6 +11,8 @@ export const createTicketSchema = z.object({
   dealershipName: z.string().optional(),
   links: z.array(z.string().url()).optional(),
   attachmentUrls: z.array(z.string().url()).optional(),
+  callRecordingUrl: z.string().url().optional().or(z.literal("")),
+  callMonitorName: z.string().optional(),
 });
 
 export const updateTicketSchema = z.object({
@@ -31,7 +33,10 @@ export const createCommentSchema = z.object({
 });
 
 export const updateUserRoleSchema = z.object({
-  role: z.enum(["SUBMITTER", "OPERATOR", "ENGINEER", "ADMIN"]),
+  role: z.enum(["SUBMITTER", "OPERATOR", "ENGINEER", "ADMIN"]).optional(),
+  isOnCall: z.boolean().optional(),
+}).refine((data) => data.role !== undefined || data.isOnCall !== undefined, {
+  message: "Provide role or isOnCall",
 });
 
 export const inviteUserSchema = z.object({

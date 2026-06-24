@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ["/submit", "/login", "/api/tickets", "/api/health", "/api/upload"];
+  const publicPaths = ["/submit", "/login", "/api/tickets", "/api/health", "/api/upload", "/api/track", "/track"];
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next") ||

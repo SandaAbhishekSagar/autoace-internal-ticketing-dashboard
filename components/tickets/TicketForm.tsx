@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SeveritySelector } from "./SeveritySelector";
-import { Paperclip, X as XIcon, Loader2 } from "lucide-react";
+import { Paperclip, X as XIcon, Loader2, AlertTriangle, ExternalLink, Phone } from "lucide-react";
+import Link from "next/link";
 
 type IssueTypeKey = "BUG" | "CALL_FAILURE" | "CUSTOMER_ISSUE" | "INTEGRATION" | "OPS_REQUEST";
 type SeverityKey = "P1" | "P2" | "P3" | "P4";
@@ -20,6 +21,8 @@ interface FormState {
   severity: SeverityKey | null;
   customerName: string;
   link: string;
+  callRecordingUrl: string;
+  callMonitorName: string;
 }
 
 interface FormErrors {
@@ -34,6 +37,13 @@ interface FormErrors {
 interface SuccessInfo {
   shortId: number;
   email: string;
+  trackingToken?: string;
+}
+
+interface DuplicateHint {
+  shortId: number;
+  title: string;
+  status: string;
 }
 
 interface AttachedFile {
@@ -53,12 +63,38 @@ export function TicketForm() {
     severity: null,
     customerName: "",
     link: "",
+    callRecordingUrl: "",
+    callMonitorName: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [duplicates, setDuplicates] = useState<DuplicateHint[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounced duplicate detection
+  const searchDuplicates = useCallback(async (title: string) => {
+    if (title.length < 8) { setDuplicates([]); return; }
+    try {
+      const res = await fetch(`/api/tickets?search=${encodeURIComponent(title)}&status=NEW,TRIAGED,IN_PROGRESS,BLOCKED&limit=3`);
+      if (res.ok) {
+        const data = await res.json();
+        setDuplicates(
+          (data.tickets ?? []).map((t: { shortId: number; title: string; status: string }) => ({
+            shortId: t.shortId,
+            title: t.title,
+            status: t.status,
+          }))
+        );
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => searchDuplicates(form.title), 600);
+    return () => clearTimeout(timer);
+  }, [form.title, searchDuplicates]);
 
   const set = (field: keyof FormState, value: string | null) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -142,6 +178,8 @@ export function TicketForm() {
       if (form.customerName) body.customerName = form.customerName;
       if (form.link) body.links = [form.link];
       if (attachmentUrls.length > 0) body.attachmentUrls = attachmentUrls;
+      if (form.callRecordingUrl) body.callRecordingUrl = form.callRecordingUrl;
+      if (form.callMonitorName) body.callMonitorName = form.callMonitorName;
 
       const res = await fetch("/api/tickets", {
         method: "POST",
@@ -156,7 +194,7 @@ export function TicketForm() {
       }
 
       const data = await res.json();
-      setSuccess({ shortId: data.shortId, email: form.submitterEmail });
+      setSuccess({ shortId: data.shortId, email: form.submitterEmail, trackingToken: data.trackingToken });
     } finally {
       setSubmitting(false);
     }
@@ -172,13 +210,17 @@ export function TicketForm() {
       severity: null,
       customerName: "",
       link: "",
+      callRecordingUrl: "",
+      callMonitorName: "",
     });
     setErrors({});
     setSuccess(null);
     setAttachedFiles([]);
+    setDuplicates([]);
   };
 
   if (success) {
+    const trackUrl = success.trackingToken ? `/track/${success.trackingToken}` : null;
     return (
       <div className="text-center space-y-5 py-6">
         <div className="text-5xl">✅</div>
@@ -191,6 +233,20 @@ export function TicketForm() {
             <span className="font-medium">{success.email}</span>.
           </p>
         </div>
+        {trackUrl && (
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 text-left">
+            <p className="text-sm font-semibold text-blue-900 mb-1">Track your ticket</p>
+            <p className="text-xs text-blue-700 mb-2">Bookmark this link to check status anytime — no login required.</p>
+            <Link
+              href={trackUrl}
+              target="_blank"
+              className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline font-medium"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View ticket status page
+            </Link>
+          </div>
+        )}
         <div className="bg-gray-50 rounded-lg p-4 text-left space-y-2 border border-gray-200">
           <p className="text-sm font-medium text-gray-700">Expected response times:</p>
           <div className="space-y-1.5">
@@ -277,6 +333,27 @@ export function TicketForm() {
         {errors.title && (
           <p className="mt-1 text-sm text-red-600">{errors.title}</p>
         )}
+        {/* Duplicate detection warning */}
+        {duplicates.length > 0 && (
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-800 mb-1">
+                  Similar open tickets found — check before submitting:
+                </p>
+                <ul className="space-y-1">
+                  {duplicates.map((d) => (
+                    <li key={d.shortId} className="text-xs text-amber-700">
+                      #{String(d.shortId).padStart(3, "0")} — {d.title}{" "}
+                      <span className="text-amber-500">({d.status.replace(/_/g, " ")})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>
@@ -361,6 +438,41 @@ export function TicketForm() {
           className="mt-1"
         />
       </div>
+
+      {/* Call context — shown for AI call problems */}
+      {form.issueType === "CALL_FAILURE" && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+            <Phone className="h-4 w-4" />
+            Call context
+          </div>
+          <div>
+            <Label htmlFor="callRecordingUrl" className="text-xs text-blue-800">
+              Call recording URL
+            </Label>
+            <Input
+              id="callRecordingUrl"
+              type="url"
+              value={form.callRecordingUrl}
+              onChange={(e) => set("callRecordingUrl", e.target.value)}
+              placeholder="https://..."
+              className="mt-1 bg-white"
+            />
+          </div>
+          <div>
+            <Label htmlFor="callMonitorName" className="text-xs text-blue-800">
+              Call monitor / reviewer name
+            </Label>
+            <Input
+              id="callMonitorName"
+              value={form.callMonitorName}
+              onChange={(e) => set("callMonitorName", e.target.value)}
+              placeholder="Who reviewed this call?"
+              className="mt-1 bg-white"
+            />
+          </div>
+        </div>
+      )}
 
       {/* File attachments */}
       <div>

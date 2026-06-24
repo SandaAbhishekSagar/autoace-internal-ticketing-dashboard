@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         role: true,
+        isOnCall: true,
         createdAt: true,
         _count: {
           select: { submittedTickets: true },

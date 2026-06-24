@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTicketSchema } from "@/lib/validations";
 import { getSLAStatus } from "@/lib/sla";
 import { sendTicketConfirmation } from "@/lib/email";
+import { notifyNewTicket } from "@/lib/slack";
+import { randomUUID } from "crypto";
 import type { Prisma, Status, Severity, IssueType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -30,6 +32,18 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* anonymous submission is fine */ }
 
+    // For P1/P2 tickets, auto-assign to the on-call engineer if no assignee supplied
+    let autoAssigneeId: string | null = null;
+    if (["P1", "P2"].includes(data.severity)) {
+      const onCall = await prisma.user.findFirst({
+        where: { isOnCall: true, role: { in: ["ENGINEER", "ADMIN"] } },
+        select: { id: true },
+      });
+      if (onCall) autoAssigneeId = onCall.id;
+    }
+
+    const trackingToken = randomUUID();
+
     const ticket = await prisma.$transaction(async (tx) => {
       const t = await tx.ticket.create({
         data: {
@@ -44,6 +58,10 @@ export async function POST(req: NextRequest) {
           dealershipName: data.dealershipName,
           links: data.links ?? [],
           attachmentUrls: data.attachmentUrls ?? [],
+          callRecordingUrl: data.callRecordingUrl,
+          callMonitorName: data.callMonitorName,
+          trackingToken,
+          assigneeId: autoAssigneeId,
         },
       });
       await tx.statusHistory.create({
@@ -57,7 +75,10 @@ export async function POST(req: NextRequest) {
       return t;
     });
 
-    // Send confirmation email (fire-and-forget, non-blocking)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const ticketUrl = `${appUrl}/tickets/${ticket.id}`;
+
+    // Fire-and-forget notifications
     sendTicketConfirmation({
       to: data.submitterEmail,
       submitterName: data.submitterName,
@@ -65,8 +86,21 @@ export async function POST(req: NextRequest) {
       title: ticket.title,
       severity: ticket.severity,
     });
+    notifyNewTicket({
+      shortId: ticket.shortId,
+      title: ticket.title,
+      severity: ticket.severity,
+      submitterName: data.submitterName,
+      customerName: data.customerName,
+      issueType: data.issueType,
+      ticketUrl,
+    });
 
-    return NextResponse.json({ id: ticket.id, shortId: ticket.shortId }, { status: 201 });
+    return NextResponse.json({
+      id: ticket.id,
+      shortId: ticket.shortId,
+      trackingToken: ticket.trackingToken,
+    }, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

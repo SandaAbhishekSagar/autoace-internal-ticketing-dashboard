@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, X, Building2, User2, Clock, Calendar, Paperclip } from "lucide-react";
+import { ExternalLink, X, Building2, User2, Clock, Calendar, Paperclip, Phone } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
 import { StatusBadge } from "./StatusBadge";
@@ -185,6 +185,31 @@ export function TicketDetailPanel({ ticketId, onClose, role }: TicketDetailPanel
                     </div>
                   )}
                 </div>
+
+                {/* Call context */}
+                {(ticket.callRecordingUrl || ticket.callMonitorName) && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-800 uppercase tracking-wider">
+                      <Phone className="h-3.5 w-3.5" /> Call Context
+                    </div>
+                    {ticket.callRecordingUrl && (
+                      <a
+                        href={ticket.callRecordingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm text-blue-700 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                        Call recording
+                      </a>
+                    )}
+                    {ticket.callMonitorName && (
+                      <p className="text-sm text-blue-800">
+                        Reviewed by <span className="font-medium">{ticket.callMonitorName}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Timeline */}
                 <div>

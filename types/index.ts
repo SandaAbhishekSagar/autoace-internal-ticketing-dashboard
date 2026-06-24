@@ -41,6 +41,9 @@ export interface TicketDetail extends TicketSummary {
   resolvedAt: Date | null;
   closedAt: Date | null;
   reopenedAt: Date | null;
+  trackingToken: string | null;
+  callRecordingUrl: string | null;
+  callMonitorName: string | null;
   comments: CommentItem[];
   history: StatusHistoryItem[];
 }

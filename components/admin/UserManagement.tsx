@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserPlus, Copy } from "lucide-react";
+import { UserPlus, Copy, Phone } from "lucide-react";
 import { toast } from "sonner";
 import type { Role } from "@prisma/client";
 
@@ -33,6 +33,7 @@ interface User {
   name: string;
   email: string;
   role: Role;
+  isOnCall: boolean;
   createdAt: string;
   _count: { submittedTickets: number };
 }
@@ -86,6 +87,22 @@ export function UserManagement() {
       );
     } else {
       toast.error("Failed to update role");
+    }
+  };
+
+  const handleOnCallToggle = async (userId: string, isOnCall: boolean) => {
+    const res = await fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isOnCall }),
+    });
+    if (res.ok) {
+      toast.success(isOnCall ? "On-call enabled" : "On-call removed");
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isOnCall } : u))
+      );
+    } else {
+      toast.error("Failed to update on-call status");
     }
   };
 
@@ -236,6 +253,7 @@ export function UserManagement() {
               <th className="text-left px-4 py-3 text-xs text-gray-500 font-semibold">Name</th>
               <th className="text-left px-4 py-3 text-xs text-gray-500 font-semibold">Email</th>
               <th className="text-left px-4 py-3 text-xs text-gray-500 font-semibold">Role</th>
+              <th className="text-center px-4 py-3 text-xs text-gray-500 font-semibold">On-call</th>
               <th className="text-right px-4 py-3 text-xs text-gray-500 font-semibold">Tickets</th>
               <th className="text-left px-4 py-3 text-xs text-gray-500 font-semibold">Joined</th>
               <th className="px-4 py-3 w-20" />
@@ -269,6 +287,25 @@ export function UserManagement() {
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {["ENGINEER", "ADMIN"].includes(user.role) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOnCallToggle(user.id, !user.isOnCall)}
+                        title={user.isOnCall ? "Remove on-call" : "Set as on-call"}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                          user.isOnCall
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        <Phone className="h-3 w-3" />
+                        {user.isOnCall ? "On-call" : "—"}
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 text-xs">N/A</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-600">
                     {user._count.submittedTickets}
