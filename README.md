@@ -31,7 +31,7 @@
    | `SLACK_WEBHOOK_URL` | Optional — Slack incoming webhook for P1/P2 alerts |
    | `CRON_SECRET` | Optional — secures `/api/cron/sla-escalation` (Railway cron) |
    | `LINEAR_API_KEY` | Optional — Linear personal API key for issue sync on triage |
-   | `LINEAR_TEAM_ID` | Optional — Linear team UUID |
+   | `LINEAR_TEAM_ID` | Optional — team UUID **or** team key (e.g. `AUT` for AutoAce ticketing) |
    | `LINEAR_WEBHOOK_SECRET` | Optional — verifies Linear webhook at `/api/webhooks/linear` |
 
 4. **Railway auto-deploys.** The build runs `prisma generate && next build`, then `prisma migrate deploy && next start`.
@@ -89,9 +89,23 @@ Breached P1/P2/P3 tickets with no first response get a Slack alert and an intern
 ### Linear integration (optional)
 
 1. Set `LINEAR_API_KEY` and `LINEAR_TEAM_ID` in Railway variables
-2. When an engineer marks a ticket **Triaged**, a Linear issue is created automatically
-3. Create a Linear webhook pointing to `https://YOUR_APP_URL/api/webhooks/linear` with header `linear-signature: YOUR_LINEAR_WEBHOOK_SECRET`
+   - For team **AutoAce ticketing**, use `LINEAR_TEAM_ID=AUT` (identifier from Linear → Settings → Teams)
+   - Or use the team UUID from: `query { teams { nodes { id key name } } }`
+2. When an engineer marks a ticket **Triaged**, a Linear issue is created automatically (e.g. `AUT-123`)
+3. Create a Linear webhook pointing to `https://YOUR_APP_URL/api/webhooks/linear`
+   - Use Linear’s **signing secret** as `LINEAR_WEBHOOK_SECRET` (HMAC verification)
 4. Status changes in Linear sync back to AutoAce tickets
+
+### File attachments (Supabase Storage)
+
+Run once in Supabase → SQL Editor (file: `supabase/storage-setup.sql`):
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('ticket-attachments', 'ticket-attachments', true, 10485760)
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public, file_size_limit = EXCLUDED.file_size_limit;
+```
 
 ---
 
