@@ -226,6 +226,8 @@ sequenceDiagram
 | **Linear webhook** | `LINEAR_WEBHOOK_SECRET` | Status sync back |
 | **SLA cron** | `CRON_SECRET` | Every 30 min via Railway |
 
+> **Email notifications:** Code is integrated via [Resend](https://resend.com), but outbound email is not active in this deployment — Resend requires a verified sending domain, which was not available for this trial. Slack alerts and in-app tracking (`/track/[token]`) cover submitter updates in the meantime. Enabling email is a one-step config change once AutoAce provides a domain.
+
 **Slack workspace:** [Join AutoAce Ticket Slack](https://join.slack.com/t/autoaceticket-vts9935/shared_invite/zt-41t6ctnmr-3nFERfqFdNBnHrSzwFUQoA)
 
 Full setup → [docs/DEPLOY.md](docs/DEPLOY.md)
