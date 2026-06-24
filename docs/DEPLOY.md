@@ -1,6 +1,8 @@
 # Deploy & Setup (detailed)
 
-Quick visual guide is in the [README](../README.md). This file has step-by-step details.
+Quick visual guide is in the [README](../README.md) (Mermaid diagrams — GitHub does not render SVG in README images).
+
+> **Note:** SVG files in `docs/assets/` are for local viewing only. Open them on GitHub via [blob view](https://github.com/SandaAbhishekSagar/autoace-internal-ticketing-dashboard/tree/master/docs/assets) if needed.
 
 ## Railway deploy
 
@@ -74,3 +76,9 @@ npm run dev
 ```
 
 Open http://localhost:3000
+
+## Slack workspace
+
+Join the team workspace: [AutoAce Ticket Slack](https://join.slack.com/t/autoaceticket-vts9935/shared_invite/zt-41t6ctnmr-3nFERfqFdNBnHrSzwFUQoA)
+
+Set `SLACK_WEBHOOK_URL` in Railway to post alerts (new P1/P2, assignments, SLA breaches, escalations) to a channel.

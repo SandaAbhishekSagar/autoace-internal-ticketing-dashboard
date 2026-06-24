@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/architecture.svg" alt="AutoAce Tickets Architecture" width="100%"/>
-</p>
-
 <h1 align="center">AutoAce Tickets</h1>
 
 <p align="center">
@@ -15,25 +11,57 @@
   <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma" alt="Prisma"/>
   <img src="https://img.shields.io/badge/Railway-Deploy-0B0D0E?style=flat-square&logo=railway&logoColor=white" alt="Railway"/>
   <img src="https://img.shields.io/badge/Linear-Sync-5E6AD2?style=flat-square" alt="Linear"/>
+  <img src="https://img.shields.io/badge/Slack-Alerts-4A154B?style=flat-square&logo=slack&logoColor=white" alt="Slack"/>
+</p>
+
+<p align="center">
+  <a href="https://join.slack.com/t/autoaceticket-vts9935/shared_invite/zt-41t6ctnmr-3nFERfqFdNBnHrSzwFUQoA"><strong>Join Slack workspace →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="docs/DEPLOY.md">Deploy guide</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/SandaAbhishekSagar/autoace-internal-ticketing-dashboard">GitHub</a>
 </p>
 
 ---
 
-## What it does
+## Architecture
 
 ```mermaid
-flowchart LR
-    A["👤 Call monitors<br/>Customers<br/>Vendors"] -->|"/submit"| B["🎫 Ticket"]
-    B --> C["📋 Dashboard"]
-    C --> D["🔧 Engineer triage"]
-    D --> E["📊 KPIs"]
-    D --> F["🔗 Linear"]
-    B --> G["📧 Email / Slack"]
-    B --> H["🔍 Track link"]
+flowchart TB
+    subgraph Users["👥 Users"]
+        U1["Call monitors"]
+        U2["Customers & vendors"]
+        U3["Operators · Engineers · Admins"]
+    end
 
-    style B fill:#2563eb,color:#fff
-    style D fill:#059669,color:#fff
-    style E fill:#7c3aed,color:#fff
+    subgraph App["⚡ Next.js 14 on Railway"]
+        WEB["Pages: /submit · /dashboard · /kpi"]
+        API["API Routes + Webhooks + Cron"]
+        PRISMA["Prisma ORM"]
+    end
+
+    subgraph Supabase["🗄️ Supabase"]
+        AUTH["Auth"]
+        DB["Postgres"]
+        STORE["Storage · attachments"]
+    end
+
+    subgraph External["🔌 Integrations (optional)"]
+        LIN["Linear AUT-xxx"]
+        SLK["Slack alerts"]
+        EM["Resend email"]
+    end
+
+    U1 & U2 -->|"/submit · /track"| WEB
+    U3 -->|login| WEB
+    WEB --> API --> PRISMA --> DB
+    API --> AUTH
+    API --> STORE
+    API --> LIN & SLK & EM
+
+    style App fill:#1e3a5f,color:#fff
+    style Supabase fill:#14532d,color:#fff
+    style External fill:#312e81,color:#fff
 ```
 
 | Problem | Solution |
@@ -47,38 +75,67 @@ flowchart LR
 
 ## Ticket lifecycle
 
-<p align="center">
-  <img src="docs/assets/ticket-flow.svg" alt="Ticket lifecycle from submit to closed" width="100%"/>
-</p>
-
 ```mermaid
-stateDiagram-v2
-    [*] --> NEW: Submit
-    NEW --> TRIAGED: Engineer reviews
-    TRIAGED --> IN_PROGRESS: Assigned
-    IN_PROGRESS --> BLOCKED: Blocked
-    BLOCKED --> IN_PROGRESS: Unblocked
-    IN_PROGRESS --> RESOLVED: Fixed
-    RESOLVED --> CLOSED: Archived
-    RESOLVED --> IN_PROGRESS: Reopened
+flowchart LR
+    S(["/submit"]) --> NEW
+    NEW -->|"P1/P2"| OC["On-call assign"]
+    OC --> TRIAGED
+    NEW --> TRIAGED
+    TRIAGED -->|"creates"| LIN["Linear AUT-xxx"]
+    TRIAGED --> IN_PROGRESS
+    IN_PROGRESS <--> BLOCKED
+    IN_PROGRESS --> RESOLVED
+    RESOLVED --> CLOSED
+    RESOLVED -.->|reopen| IN_PROGRESS
 
-    note right of TRIAGED: Creates Linear issue (AUT-xxx)
-    note right of NEW: P1/P2 auto-assigns on-call
+    style NEW fill:#fef3c7,stroke:#d97706
+    style TRIAGED fill:#e0e7ff,stroke:#4f46e5
+    style IN_PROGRESS fill:#d1fae5,stroke:#059669
+    style RESOLVED fill:#dcfce7,stroke:#16a34a
+    style CLOSED fill:#f1f5f9,stroke:#64748b
 ```
+
+| Status | Meaning |
+|--------|---------|
+| **NEW** | Just submitted · P1/P2 auto-routes to on-call |
+| **TRIAGED** | Reviewed · Linear issue created |
+| **IN_PROGRESS** | Engineer actively working |
+| **BLOCKED** | Waiting on dependency |
+| **RESOLVED** | Fix deployed · submitter notified |
+| **CLOSED** | Archived |
 
 ---
 
-## App map
+## App map & roles
 
-<p align="center">
-  <img src="docs/assets/app-map.svg" alt="Application route map" width="100%"/>
-</p>
+```mermaid
+flowchart TB
+    subgraph Public["🌐 Public — no login"]
+        P1["/submit"]
+        P2["/login"]
+        P3["/track/token"]
+    end
 
-## Who sees what
+    subgraph AllRoles["👤 All authenticated roles"]
+        A1["/my-tickets"]
+        A2["/tickets/id"]
+    end
 
-<p align="center">
-  <img src="docs/assets/roles.svg" alt="Role access matrix" width="100%"/>
-</p>
+    subgraph Eng["🔧 Engineer + Admin"]
+        E1["/dashboard"]
+        E2["/kpi"]
+        E3["CSV export"]
+    end
+
+    subgraph AdminOnly["⚙️ Admin only"]
+        AD1["/admin/users"]
+        AD2["On-call toggle"]
+    end
+
+    Public --> AllRoles
+    AllRoles --> Eng
+    Eng --> AdminOnly
+```
 
 | Page | Public | Submitter | Operator | Engineer | Admin |
 |------|:------:|:---------:|:--------:|:--------:|:-----:|
@@ -89,6 +146,18 @@ stateDiagram-v2
 | `/tickets/[id]` | — | own only | 👁️ | ✅ | ✅ |
 | `/kpi` | — | — | — | ✅ | ✅ |
 | `/admin/users` | — | — | — | — | ✅ |
+
+```mermaid
+flowchart LR
+    subgraph Access["Permission level"]
+        direction TB
+        SUB["Submitter<br/>submit + own tickets"]
+        OP["Operator<br/>+ view all read-only"]
+        ENG["Engineer<br/>+ triage · KPI · notes"]
+        ADM["Admin<br/>+ user mgmt · on-call"]
+    end
+    SUB --> OP --> ENG --> ADM
+```
 
 ---
 
@@ -102,9 +171,9 @@ flowchart LR
     W -->|P3| C["24h SLA"]
     W -->|P4| D["No SLA"]
     A & B & C --> R{First response?}
-    R -->|No, breached| E["🔴 Red row + Cron escalate"]
+    R -->|breached| E["🔴 Red row + cron escalate"]
     R -->|75% elapsed| F["🟡 Amber row"]
-    R -->|Yes| G["✅ OK"]
+    R -->|yes| G["✅ OK"]
 ```
 
 | Severity | Response SLA | Dashboard |
@@ -118,9 +187,20 @@ flowchart LR
 
 ## Integrations
 
-<p align="center">
-  <img src="docs/assets/integrations.svg" alt="Integrations hub" width="100%"/>
-</p>
+```mermaid
+flowchart LR
+    APP["AutoAce Tickets"]
+
+    APP -->|"Triaged"| LIN["Linear<br/>AUT-xxx"]
+    LIN -->|"webhook"| APP
+
+    APP --> SLK["Slack<br/>P1/P2 · assign · SLA"]
+    APP --> EM["Resend<br/>confirm · status"]
+    APP --> CRON["Railway Cron<br/>SLA escalation"]
+    APP --> STOR["Supabase Storage<br/>attachments"]
+
+    style APP fill:#2563eb,color:#fff
+```
 
 ```mermaid
 sequenceDiagram
@@ -138,7 +218,47 @@ sequenceDiagram
     A->>S: Email status update
 ```
 
-All integrations are **optional** — enable with env vars. Details → [docs/DEPLOY.md](docs/DEPLOY.md)
+| Integration | Env var | Trigger |
+|-------------|---------|---------|
+| **Slack** | `SLACK_WEBHOOK_URL` | New P1/P2, assign, SLA breach, escalate |
+| **Email** | `RESEND_API_KEY` | Confirm, status change, assignment |
+| **Linear** | `LINEAR_API_KEY` + `LINEAR_TEAM_ID=AUT` | Status → Triaged |
+| **Linear webhook** | `LINEAR_WEBHOOK_SECRET` | Status sync back |
+| **SLA cron** | `CRON_SECRET` | Every 30 min via Railway |
+
+**Slack workspace:** [Join AutoAce Ticket Slack](https://join.slack.com/t/autoaceticket-vts9935/shared_invite/zt-41t6ctnmr-3nFERfqFdNBnHrSzwFUQoA)
+
+Full setup → [docs/DEPLOY.md](docs/DEPLOY.md)
+
+---
+
+## Features
+
+```mermaid
+mindmap
+  root((AutoAce))
+    Submit
+      No login required
+      Attachments
+      Call context
+      Duplicate hints
+      Tracking token
+    Triage
+      Assign owner
+      Internal notes
+      Bulk actions
+      Manual escalate
+      Linear sync
+    Automations
+      On-call routing
+      SLA cron
+      Email + Slack
+    Reporting
+      9 KPI metrics
+      CSV export
+      Engineer tables
+      Customer tables
+```
 
 ---
 
@@ -172,37 +292,20 @@ erDiagram
 
 ## Tech stack
 
-```mermaid
-mindmap
-  root((AutoAce Tickets))
-    Frontend
-      Next.js 14 App Router
-      Tailwind + shadcn/ui
-      Recharts KPIs
-    Backend
-      API Routes
-      Zod validation
-      Server-side RBAC
-    Data
-      Supabase Postgres
-      Prisma ORM
-      Supabase Storage
-      Supabase Auth
-    Deploy
-      Railway
-      Cron SLA job
-    Integrations
-      Linear GraphQL
-      Slack webhooks
-      Resend email
-```
+| Layer | Tools |
+|-------|-------|
+| Frontend | Next.js 14 · Tailwind · shadcn/ui · Recharts |
+| Backend | API Routes · Zod · server-side RBAC |
+| Data | Supabase Postgres · Prisma · Supabase Auth · Storage |
+| Deploy | Railway · Prisma migrate on start |
+| Integrations | Linear GraphQL · Slack webhooks · Resend |
 
 ---
 
 ## Quick start
 
 ```bash
-git clone <repo>
+git clone https://github.com/SandaAbhishekSagar/autoace-internal-ticketing-dashboard.git
 cd autoace-tickets
 cp .env.local.example .env.local   # fill Supabase keys
 npm install
@@ -212,7 +315,7 @@ npm run dev
 
 → **http://localhost:3000** · Public submit at **/submit**
 
-**Production deploy** → see [docs/DEPLOY.md](docs/DEPLOY.md) (Railway + env vars + one-time setup)
+**Production** → [docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
@@ -220,18 +323,16 @@ npm run dev
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | `admin@autoace.com` | `Password123!` |
-| Engineer | `engineer1@autoace.com` | `Password123!` |
-| Operator | `operator1@autoace.com` | `Password123!` |
-| Submitter | `submitter1@autoace.com` | `Password123!` |
+| Admin | `sabhisheksagar200@gmail.com` | `$uper!@#$base` |
+| Engineer | `bob@gmail.com` | `TempPassp9fkj2y8!` |
+| Operator | `frank@gmail.com` | `TempPassv0c76vwp!` |
+| Submitter | `abhisheksagar110@gmail.com` | `TempPasskbzvup36!` |
 
-> Create matching users in **Supabase Auth**, then link `supabaseId` in SQL. See [docs/DEPLOY.md](docs/DEPLOY.md).
+> Link Supabase Auth users to DB: `UPDATE "User" SET "supabaseId" = '<uuid>' WHERE email = '...'` — see [docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
-## KPI dashboard
-
-Nine metrics from the project scope — all live on `/kpi`:
+## KPI dashboard (`/kpi`)
 
 ```mermaid
 flowchart TB
@@ -258,17 +359,26 @@ flowchart TB
 
 ```
 autoace-tickets/
-├── app/
-│   ├── (public)/submit, login, track   ← no auth
-│   ├── (app)/dashboard, kpi, admin     ← authenticated
-│   └── api/                            ← REST + webhooks + cron
-├── components/                         ← UI + charts
-├── lib/                                ← auth, sla, linear, email, slack
-├── prisma/                             ← schema + migrations + seed
-└── docs/
-    ├── DEPLOY.md                       ← full setup guide
-    └── assets/*.svg                    ← architecture diagrams
+├── app/(public)/     submit · login · track
+├── app/(app)/        dashboard · kpi · admin · tickets
+├── app/api/          REST · webhooks · cron
+├── components/       UI + charts
+├── lib/              auth · sla · linear · email · slack
+├── prisma/           schema · migrations · seed
+└── docs/DEPLOY.md    full setup guide
 ```
+
+---
+
+## Key decisions
+
+| Decision | Why |
+|----------|-----|
+| Anonymous submit | Zero friction for non-technical users |
+| Token tracking `/track/[token]` | Customers see status, not internal notes |
+| Linear only after triage | Engineering controls their backlog |
+| Server-side RBAC | API enforces security, not just UI |
+| Operator = read-only | Call monitors see all, change nothing |
 
 ---
 
@@ -282,18 +392,10 @@ autoace-tickets/
 
 ---
 
-## Key decisions
-
-| Decision | Why |
-|----------|-----|
-| Anonymous submit | Zero friction for non-technical users |
-| Token tracking `/track/[token]` | Customers see status, not internal notes |
-| Linear only after triage | Engineering controls what enters their backlog |
-| Server-side RBAC | UI hides buttons; API enforces security |
-| Operator = read-only | Call monitors see everything, change nothing |
-
----
-
 <p align="center">
-  <sub>Built for AutoAce · <a href="docs/DEPLOY.md">Deploy guide</a> · <a href="/submit">Try /submit</a></sub>
+  <sub>
+    Built for AutoAce ·
+    <a href="https://join.slack.com/t/autoaceticket-vts9935/shared_invite/zt-41t6ctnmr-3nFERfqFdNBnHrSzwFUQoA">Slack</a> ·
+    <a href="docs/DEPLOY.md">Deploy</a>
+  </sub>
 </p>
